@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+*.log
+
+# test coverage
+coverage/
+
+# editor/os
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# docker
+docker/data/

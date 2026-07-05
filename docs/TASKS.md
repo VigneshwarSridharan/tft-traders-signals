@@ -18,7 +18,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 
 ## Phase 1 — Core send + track (MVP)
 
-### ⬜ Task 1 — Project scaffolding & infrastructure (M)
+### ✅ Task 1 — Project scaffolding & infrastructure (M)
 **Depends on:** —
 - Monorepo setup: NestJS API (`apps/api`), Next.js dashboard (`apps/web`),
   shared types package (`packages/shared`).

@@ -1,0 +1,106 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tft}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tft}
+      POSTGRES_DB: ${POSTGRES_DB:-tft_traders_signals}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tft}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      # Override .env's host-facing values with in-network service names —
+      # .env's DATABASE_URL/REDIS_URL are for running the api on the host
+      # against these same containers' published ports.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tft}:${POSTGRES_PASSWORD:-tft}@postgres:5432/${POSTGRES_DB:-tft_traders_signals}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    restart: unless-stopped
+    command: ["node", "apps/api/dist/worker.js"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-tft}:${POSTGRES_PASSWORD:-tft}@postgres:5432/${POSTGRES_DB:-tft_traders_signals}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+    depends_on:
+      - api
+    ports:
+      - "3001:3000"
+
+  reverse-proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      DASHBOARD_HOST: ${DASHBOARD_HOST:-dashboard.localhost}
+      API_HOST: ${API_HOST:-api.localhost}
+      TRACKING_HOST: ${TRACKING_HOST:-track.localhost}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
