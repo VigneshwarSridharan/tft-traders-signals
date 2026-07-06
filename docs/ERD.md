@@ -23,6 +23,8 @@ erDiagram
     users ||--o{ audit_logs : "acts"
     users ||--o{ notifications : "receives"
     users ||--o{ api_keys : "owns"
+    users ||--o{ sessions : "authenticates"
+    users ||--o{ invitations : "invites"
 
     sender_accounts ||--o{ email_messages : "from"
     sender_accounts ||--o{ inbound_messages : "mailbox"
@@ -80,6 +82,28 @@ erDiagram
 | scopes | text[] | e.g. `{send, read:analytics}` |
 | last_used_at | timestamptz | |
 | expires_at / revoked_at | timestamptz NULL | |
+
+#### `sessions`
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| user_id | uuid FK→users, ON DELETE CASCADE | |
+| refresh_token_hash | text UNIQUE NOT NULL | SHA-256 of the refresh token; rotated on every `/auth/refresh` |
+| user_agent / ip | text / inet NULL | request metadata at issuance |
+| expires_at | timestamptz NOT NULL | |
+| revoked_at | timestamptz NULL | set on logout or rotation |
+
+#### `invitations`
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| email | citext NOT NULL | not unique — a prior revoked/expired invite can be re-sent |
+| name | text NOT NULL | pre-fills the new user's name |
+| role | enum `user_role` DEFAULT 'agent' | assigned on acceptance |
+| token_hash | text UNIQUE NOT NULL | SHA-256 of the invite token |
+| invited_by | uuid FK→users NOT NULL | |
+| expires_at | timestamptz NOT NULL | default 72h, `INVITATION_TTL_HOURS` |
+| accepted_at / revoked_at | timestamptz NULL | partial unique index enforces one pending invite per email |
 
 #### `audit_logs` *(append-only, no updated_at)*
 | Column | Type | Notes |
