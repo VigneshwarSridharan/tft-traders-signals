@@ -10,7 +10,11 @@ import type {
   ComposeSenderAccountOption,
   ComposeSendResponse,
   ComposeTestSendResponse,
+  EmailMessageDetail,
+  EmailMessageListResponse,
   EmailMessageSummary,
+  EmailMessageTimelineResponse,
+  SavedMessageFilter,
   UserRole,
 } from '@tft/shared';
 import type { EnvConfig } from '../config/env.validation';
@@ -21,9 +25,14 @@ import {
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import { EmailLinksRepository } from '../database/email-links.repository';
+import type { EmailMessageListRow } from '../database/email-messages.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { InboundRepository } from '../database/inbound.repository';
+import { SavedMessageFiltersRepository } from '../database/saved-message-filters.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
+import { TagsRepository } from '../database/tags.repository';
 import { TemplatesRepository } from '../database/templates.repository';
+import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import { EmailSenderService } from '../send/email-sender.service';
 import { SendQueueService } from '../send/send-queue.service';
 import {
@@ -44,8 +53,17 @@ import { inlineCss } from './css-inline.util';
 import type {
   ComposeSendDto,
   ComposeTestSendDto,
+  CreateSavedMessageFilterDto,
+  MessageListQueryDto,
 } from './dto/email-messages.schemas';
-import { toEmailMessageSummary } from './email-messages.mapper';
+import {
+  toEmailLinkClickSummary,
+  toEmailMessageDetail,
+  toEmailMessageListItem,
+  toEmailMessageSummary,
+  toSavedMessageFilter,
+  toTrackingEventSummary,
+} from './email-messages.mapper';
 import { applyTracking, type RewrittenLink } from './tracking-injection.util';
 
 interface UploadedAttachment {
@@ -69,6 +87,10 @@ export class EmailMessagesService {
     private readonly sendQueueService: SendQueueService,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly emailSenderService: EmailSenderService,
+    private readonly trackingEventsRepository: TrackingEventsRepository,
+    private readonly inboundRepository: InboundRepository,
+    private readonly tagsRepository: TagsRepository,
+    private readonly savedMessageFiltersRepository: SavedMessageFiltersRepository,
   ) {}
 
   async get(id: string): Promise<EmailMessageSummary> {
@@ -78,6 +100,106 @@ export class EmailMessagesService {
     }
     const attachments = await this.emailMessagesRepository.getAttachments(id);
     return toEmailMessageSummary(row, attachments);
+  }
+
+  async list(query: MessageListQueryDto): Promise<EmailMessageListResponse> {
+    const { rows, total } = await this.emailMessagesRepository.list({
+      search: query.search,
+      status: query.status,
+      senderAccountId: query.senderAccountId,
+      templateId: query.templateId,
+      tagId: query.tagId,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+      sort: query.sort,
+      sortDir: query.sortDir,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+
+    const tagsByMessage = await this.tagsRepository.listForEntities(
+      'message',
+      rows.map((row) => row.id),
+    );
+
+    return {
+      items: rows.map((row) =>
+        toEmailMessageListItem(row, tagsByMessage.get(row.id) ?? []),
+      ),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  }
+
+  async getDetail(id: string): Promise<EmailMessageDetail> {
+    const row = await this.getDetailRow(id);
+    const [attachments, bounce, tags] = await Promise.all([
+      this.emailMessagesRepository.getAttachments(id),
+      this.inboundRepository.findBounceByMessageId(id),
+      this.tagsRepository.listForEntity('message', id),
+    ]);
+    return toEmailMessageDetail(row, attachments, bounce, tags);
+  }
+
+  async getTimeline(
+    id: string,
+    includeBotEvents: boolean,
+  ): Promise<EmailMessageTimelineResponse> {
+    await this.getDetailRow(id);
+    const [events, links] = await Promise.all([
+      this.trackingEventsRepository.listForMessage(id, { includeBotEvents }),
+      this.emailLinksRepository.listForMessage(id),
+    ]);
+    return {
+      events: events.map(toTrackingEventSummary),
+      links: links.map(toEmailLinkClickSummary),
+    };
+  }
+
+  async addTag(id: string, tagId: string): Promise<EmailMessageDetail> {
+    await this.getDetailRow(id);
+    const tag = await this.tagsRepository.findById(tagId);
+    if (!tag) {
+      throw new NotFoundException(`Tag ${tagId} not found`);
+    }
+    await this.tagsRepository.addTagging(tagId, 'message', id);
+    return this.getDetail(id);
+  }
+
+  async removeTag(id: string, tagId: string): Promise<EmailMessageDetail> {
+    await this.getDetailRow(id);
+    await this.tagsRepository.removeTagging(tagId, 'message', id);
+    return this.getDetail(id);
+  }
+
+  async listSavedFilters(userId: string): Promise<SavedMessageFilter[]> {
+    const rows = await this.savedMessageFiltersRepository.listForUser(userId);
+    return rows.map(toSavedMessageFilter);
+  }
+
+  async createSavedFilter(
+    userId: string,
+    input: CreateSavedMessageFilterDto,
+  ): Promise<SavedMessageFilter> {
+    const row = await this.savedMessageFiltersRepository.create({
+      userId,
+      name: input.name,
+      filter: input.filter,
+    });
+    return toSavedMessageFilter(row);
+  }
+
+  async deleteSavedFilter(id: string, userId: string): Promise<void> {
+    await this.savedMessageFiltersRepository.delete(id, userId);
+  }
+
+  private async getDetailRow(id: string): Promise<EmailMessageListRow> {
+    const row = await this.emailMessagesRepository.findDetailById(id);
+    if (!row) {
+      throw new NotFoundException('Message not found');
+    }
+    return row;
   }
 
   async compose(

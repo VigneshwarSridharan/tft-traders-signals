@@ -35,6 +35,14 @@ export class EmailLinksRepository {
     return rows[0];
   }
 
+  async listForMessage(messageId: string): Promise<EmailLinkRow[]> {
+    const { rows } = await this.pool.query<EmailLinkRow>(
+      `SELECT * FROM email_links WHERE message_id = $1 ORDER BY position ASC NULLS LAST, created_at ASC`,
+      [messageId],
+    );
+    return rows;
+  }
+
   async findByToken(token: string): Promise<EmailLinkRow | null> {
     const { rows } = await this.pool.query<EmailLinkRow>(
       `SELECT * FROM email_links WHERE token = $1`,

@@ -5,6 +5,11 @@ import { PG_POOL } from './database.constants';
 import type { Queryable } from './queryable';
 import type { TrackingEventRow } from './rows';
 
+export interface TrackingEventWithLinkRow extends TrackingEventRow {
+  link_original_url: string | null;
+  link_label: string | null;
+}
+
 export interface CreateTrackingEventInput {
   messageId: string;
   linkId: string | null;
@@ -54,6 +59,25 @@ export class TrackingEventsRepository {
       ],
     );
     return rows[0];
+  }
+
+  async listForMessage(
+    messageId: string,
+    options: { includeBotEvents: boolean } = { includeBotEvents: false },
+  ): Promise<TrackingEventWithLinkRow[]> {
+    const conditions = ['e.message_id = $1'];
+    if (!options.includeBotEvents) {
+      conditions.push('e.is_bot = false');
+    }
+    const { rows } = await this.pool.query<TrackingEventWithLinkRow>(
+      `SELECT e.*, l.original_url AS link_original_url, l.link_label
+       FROM tracking_events e
+       LEFT JOIN email_links l ON l.id = e.link_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY e.occurred_at ASC`,
+      [messageId],
+    );
+    return rows;
   }
 
   /** Distinct links clicked on this message within `windowMs` before `before` — feeds the "all links clicked instantly" bot heuristic. */

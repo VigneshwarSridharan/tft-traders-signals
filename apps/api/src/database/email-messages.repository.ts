@@ -1,9 +1,42 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
-import type { BounceClass, MessageStatus } from '@tft/shared';
+import type {
+  BounceClass,
+  MessageListSortField,
+  MessageStatus,
+} from '@tft/shared';
 import { PG_POOL } from './database.constants';
 import type { Queryable } from './queryable';
 import type { AttachmentRow, EmailMessageRow } from './rows';
+
+export interface EmailMessageListRow extends EmailMessageRow {
+  sender_account_email: string;
+  sender_account_display_name: string | null;
+  template_id: string | null;
+  template_name: string | null;
+}
+
+export interface EmailMessageListFilter {
+  search?: string;
+  status?: MessageStatus;
+  senderAccountId?: string;
+  templateId?: string;
+  tagId?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  sort: MessageListSortField;
+  sortDir: 'asc' | 'desc';
+  page: number;
+  pageSize: number;
+}
+
+const SORT_COLUMNS: Record<MessageListSortField, string> = {
+  sentAt: 'm.sent_at',
+  createdAt: 'm.created_at',
+  openCount: 'm.open_count',
+  clickCount: 'm.click_count',
+  status: 'm.status',
+};
 
 export interface CreateEmailMessageInput {
   publicToken: string;
@@ -33,6 +66,98 @@ export interface CreateAttachmentInput {
 @Injectable()
 export class EmailMessagesRepository {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
+
+  private static readonly LIST_SELECT = `
+    SELECT m.*,
+           sa.email AS sender_account_email,
+           sa.display_name AS sender_account_display_name,
+           et.id AS template_id,
+           et.name AS template_name
+    FROM email_messages m
+    JOIN sender_accounts sa ON sa.id = m.sender_account_id
+    LEFT JOIN template_versions tv ON tv.id = m.template_version_id
+    LEFT JOIN email_templates et ON et.id = tv.template_id
+  `;
+
+  async list(
+    filter: EmailMessageListFilter,
+  ): Promise<{ rows: EmailMessageListRow[]; total: number }> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filter.search) {
+      params.push(`%${filter.search}%`);
+      conditions.push(
+        `(m.to_email ILIKE $${params.length} OR m.subject ILIKE $${params.length})`,
+      );
+    }
+    if (filter.status) {
+      params.push(filter.status);
+      conditions.push(`m.status = $${params.length}`);
+    }
+    if (filter.senderAccountId) {
+      params.push(filter.senderAccountId);
+      conditions.push(`m.sender_account_id = $${params.length}`);
+    }
+    if (filter.templateId) {
+      params.push(filter.templateId);
+      conditions.push(`et.id = $${params.length}`);
+    }
+    if (filter.dateFrom) {
+      params.push(filter.dateFrom);
+      conditions.push(`m.sent_at >= $${params.length}`);
+    }
+    if (filter.dateTo) {
+      params.push(filter.dateTo);
+      conditions.push(`m.sent_at <= $${params.length}`);
+    }
+    if (filter.tagId) {
+      params.push(filter.tagId);
+      conditions.push(
+        `EXISTS (
+           SELECT 1 FROM taggings tg
+           WHERE tg.entity_type = 'message'
+             AND tg.entity_id = m.id
+             AND tg.tag_id = $${params.length}
+         )`,
+      );
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sortColumn = SORT_COLUMNS[filter.sort];
+    const sortDir = filter.sortDir === 'desc' ? 'DESC' : 'ASC';
+    const offset = (filter.page - 1) * filter.pageSize;
+
+    const countResult = await this.pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+       FROM email_messages m
+       JOIN sender_accounts sa ON sa.id = m.sender_account_id
+       LEFT JOIN template_versions tv ON tv.id = m.template_version_id
+       LEFT JOIN email_templates et ON et.id = tv.template_id
+       ${whereClause}`,
+      params,
+    );
+
+    const { rows } = await this.pool.query<EmailMessageListRow>(
+      `${EmailMessagesRepository.LIST_SELECT}
+       ${whereClause}
+       ORDER BY ${sortColumn} ${sortDir}, m.id ASC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, filter.pageSize, offset],
+    );
+
+    return { rows, total: Number(countResult.rows[0]?.count ?? '0') };
+  }
+
+  async findDetailById(id: string): Promise<EmailMessageListRow | null> {
+    const { rows } = await this.pool.query<EmailMessageListRow>(
+      `${EmailMessagesRepository.LIST_SELECT}
+       WHERE m.id = $1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
 
   async create(input: CreateEmailMessageInput): Promise<EmailMessageRow> {
     const { rows } = await this.pool.query<EmailMessageRow>(

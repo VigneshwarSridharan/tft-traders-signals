@@ -1,4 +1,7 @@
+import type { BounceClass } from "./bounce-class";
 import type { MessageStatus } from "./message-status";
+import type { TagSummary } from "./tag";
+import type { TrackingEventType } from "./tracking-event-type";
 
 export interface AttachmentSummary {
   id: string;
@@ -73,4 +76,124 @@ export interface ComposeTestSendResponse {
   to: string;
   smtpResponse: string;
   unresolvedPlaceholders: string[];
+}
+
+export const MESSAGE_LIST_SORT_FIELDS = [
+  "sentAt",
+  "createdAt",
+  "openCount",
+  "clickCount",
+  "status",
+] as const;
+
+export type MessageListSortField = (typeof MESSAGE_LIST_SORT_FIELDS)[number];
+
+export interface EmailMessageListItem {
+  id: string;
+  toName: string | null;
+  toEmail: string;
+  senderAccountId: string;
+  senderAccountEmail: string;
+  senderAccountDisplayName: string | null;
+  templateId: string | null;
+  templateName: string | null;
+  subject: string | null;
+  status: MessageStatus;
+  sentAt: string | null;
+  createdAt: string;
+  openCount: number;
+  clickCount: number;
+  repliedAt: string | null;
+  tags: TagSummary[];
+}
+
+export interface EmailMessageListQuery {
+  search?: string;
+  status?: MessageStatus;
+  senderAccountId?: string;
+  templateId?: string;
+  tagId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sort?: MessageListSortField;
+  sortDir?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface EmailMessageListResponse {
+  items: EmailMessageListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface BounceSummary {
+  bounceClass: BounceClass;
+  statusCode: string | null;
+  diagnostic: string | null;
+  bouncedAt: string | null;
+}
+
+export interface EmailMessageDetail extends EmailMessageSummary {
+  senderAccountEmail: string;
+  senderAccountDisplayName: string | null;
+  toCustomerName: string;
+  bodyHtmlRendered: string | null;
+  bodyTextRendered: string | null;
+  templateId: string | null;
+  templateName: string | null;
+  openCount: number;
+  uniqueOpenHint: boolean;
+  firstOpenedAt: string | null;
+  lastOpenedAt: string | null;
+  clickCount: number;
+  firstClickedAt: string | null;
+  lastClickedAt: string | null;
+  repliedAt: string | null;
+  bounceType: BounceClass | "none";
+  bounce: BounceSummary | null;
+  tags: TagSummary[];
+}
+
+export interface TrackingEventSummary {
+  id: string;
+  eventType: TrackingEventType;
+  occurredAt: string;
+  deviceType: string | null;
+  os: string | null;
+  browser: string | null;
+  geoCountry: string | null;
+  geoCity: string | null;
+  isBot: boolean;
+  isProxy: boolean;
+  linkId: string | null;
+  linkUrl: string | null;
+  linkLabel: string | null;
+}
+
+export interface EmailLinkClickSummary {
+  id: string;
+  originalUrl: string;
+  linkLabel: string | null;
+  position: number | null;
+  clickCount: number;
+}
+
+export interface EmailMessageTimelineResponse {
+  events: TrackingEventSummary[];
+  links: EmailLinkClickSummary[];
+}
+
+export interface SavedMessageFilter {
+  id: string;
+  name: string;
+  filter: EmailMessageListQuery;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSavedMessageFilterRequest {
+  name: string;
+  filter: EmailMessageListQuery;
 }

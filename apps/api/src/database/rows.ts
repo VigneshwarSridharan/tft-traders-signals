@@ -247,6 +247,15 @@ export interface BounceRow {
   updated_at: Date;
 }
 
+export interface SavedMessageFilterRow {
+  id: string;
+  user_id: string;
+  name: string;
+  filter: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface SuppressionRow {
   id: string;
   email: string;
