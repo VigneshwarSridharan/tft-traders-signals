@@ -54,6 +54,20 @@ export class SenderAccountsRepository {
     return rows[0] ?? null;
   }
 
+  async listActive(): Promise<SenderAccountRow[]> {
+    const { rows } = await this.pool.query<SenderAccountRow>(
+      `SELECT * FROM sender_accounts WHERE status = 'active' ORDER BY created_at ASC`,
+    );
+    return rows;
+  }
+
+  async updateImapLastUid(id: string, imapLastUid: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE sender_accounts SET imap_last_uid = $2 WHERE id = $1`,
+      [id, imapLastUid],
+    );
+  }
+
   async findByEmail(email: string): Promise<SenderAccountRow | null> {
     const { rows } = await this.pool.query<SenderAccountRow>(
       `SELECT * FROM sender_accounts WHERE email = $1`,

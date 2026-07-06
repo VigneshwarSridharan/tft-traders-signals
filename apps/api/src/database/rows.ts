@@ -1,7 +1,9 @@
 import type {
+  BounceClass,
   CustomFieldType,
   MessageStatus,
   SenderAccountStatus,
+  SuppressionReason,
   TemplateStatus,
   TrackingEventType,
   UserRole,
@@ -212,6 +214,48 @@ export interface AttachmentRow {
   content_type: string | null;
   size_bytes: number | null;
   storage_path: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface InboundMessageRow {
+  id: string;
+  sender_account_id: string;
+  imap_uid: string;
+  message_id_header: string | null;
+  in_reply_to: string | null;
+  references_header: string | null;
+  from_email: string | null;
+  subject: string | null;
+  received_at: Date | null;
+  classification: 'bounce_dsn' | 'reply' | 'other';
+  matched_message_id: string | null;
+  raw_headers: Record<string, unknown>;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface BounceRow {
+  id: string;
+  message_id: string;
+  inbound_message_id: string | null;
+  bounce_class: BounceClass;
+  status_code: string | null;
+  diagnostic: string | null;
+  bounced_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface SuppressionRow {
+  id: string;
+  email: string;
+  customer_id: string | null;
+  reason: SuppressionReason;
+  source_message_id: string | null;
+  suppressed_at: Date;
+  released_at: Date | null;
+  released_by: string | null;
   created_at: Date;
   updated_at: Date;
 }

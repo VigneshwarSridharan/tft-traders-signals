@@ -15,6 +15,8 @@ import { TemplateCategoriesModule } from './template-categories/template-categor
 import { TemplatesModule } from './templates/templates.module';
 import { EmailMessagesModule } from './email-messages/email-messages.module';
 import { TrackingModule } from './tracking/tracking.module';
+import { InboundModule } from './inbound/inbound.module';
+import { SuppressionsModule } from './suppressions/suppressions.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { TrackingModule } from './tracking/tracking.module';
     TemplatesModule,
     EmailMessagesModule,
     TrackingModule,
+    InboundModule,
+    SuppressionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
-import type { MessageStatus } from '@tft/shared';
+import type { BounceClass, MessageStatus } from '@tft/shared';
 import { PG_POOL } from './database.constants';
 import type { Queryable } from './queryable';
 import type { AttachmentRow, EmailMessageRow } from './rows';
@@ -143,6 +143,45 @@ export class EmailMessagesRepository {
       `UPDATE email_messages SET status = 'queued' WHERE id = $1`,
       [id],
     );
+  }
+
+  async findByMessageIdHeader(
+    messageIdHeader: string,
+    executor: Queryable = this.pool,
+  ): Promise<EmailMessageRow | null> {
+    const { rows } = await executor.query<EmailMessageRow>(
+      `SELECT * FROM email_messages WHERE message_id_header = $1`,
+      [messageIdHeader],
+    );
+    return rows[0] ?? null;
+  }
+
+  async markBounced(
+    id: string,
+    bounceType: BounceClass,
+    bouncedAt: Date,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `UPDATE email_messages
+       SET status = 'bounced', bounce_type = $2, smtp_response = COALESCE(smtp_response, $3)
+       WHERE id = $1`,
+      [id, bounceType, `bounced at ${bouncedAt.toISOString()}`],
+    );
+  }
+
+  /** `sent` messages older than the delivery-heuristic window with no bounce are assumed delivered. */
+  async markDeliveredAfterHeuristic(hours: number): Promise<string[]> {
+    const { rows } = await this.pool.query<{ id: string }>(
+      `UPDATE email_messages
+       SET status = 'delivered'
+       WHERE status = 'sent'
+         AND sent_at IS NOT NULL
+         AND sent_at < now() - ($1 || ' hours')::interval
+       RETURNING id`,
+      [hours],
+    );
+    return rows.map((row) => row.id);
   }
 
   async createAttachment(input: CreateAttachmentInput): Promise<AttachmentRow> {

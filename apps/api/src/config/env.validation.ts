@@ -32,6 +32,23 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(60_000),
+  INBOUND_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(120_000),
+  DELIVERY_HEURISTIC_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(15 * 60_000),
+  DELIVERY_HEURISTIC_HOURS: z.coerce.number().int().positive().default(48),
+  SOFT_BOUNCE_SUPPRESSION_THRESHOLD: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(3),
+  SOFT_BOUNCE_SUPPRESSION_WINDOW_DAYS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(30),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;
