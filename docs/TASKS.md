@@ -59,7 +59,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** all five Zoho accounts connect and verify; wrong password shows
   actionable error; credentials never appear in logs or API responses.
 
-### ⬜ Task 5 — Customer management (M)
+### ✅ Task 5 — Customer management (M)
 **Depends on:** 3
 - Customer CRUD + list with search/sort/pagination; tags; notes.
 - Custom field definitions (admin) + per-customer values with type validation.
@@ -69,7 +69,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** import a 500-row CSV with some bad rows → valid rows in, error
   report lists bad ones; custom field appears as a merge candidate.
 
-### ⬜ Task 6 — Template management (L)
+### ✅ Task 6 — Template management (L)
 **Depends on:** 3
 - Template CRUD with categories, draft/active/archived status, duplicate,
   soft-delete; default template per category.

@@ -11,6 +11,8 @@ import { SenderAccountsModule } from './sender-accounts/sender-accounts.module';
 import { CustomersModule } from './customers/customers.module';
 import { CustomFieldDefsModule } from './custom-field-defs/custom-field-defs.module';
 import { TagsModule } from './tags/tags.module';
+import { TemplateCategoriesModule } from './template-categories/template-categories.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { TagsModule } from './tags/tags.module';
     CustomersModule,
     CustomFieldDefsModule,
     TagsModule,
+    TemplateCategoriesModule,
+    TemplatesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
