@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/customers", label: "Customers" },
+  { href: "/dashboard/templates", label: "Templates" },
   { href: "/dashboard/users", label: "Users", adminOnly: true },
   {
     href: "/dashboard/sender-accounts",
@@ -18,6 +19,11 @@ const NAV_ITEMS = [
   {
     href: "/dashboard/custom-fields",
     label: "Custom Fields",
+    adminOnly: true,
+  },
+  {
+    href: "/dashboard/template-categories",
+    label: "Template Categories",
     adminOnly: true,
   },
 ];

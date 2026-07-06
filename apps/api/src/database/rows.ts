@@ -1,6 +1,7 @@
 import type {
   CustomFieldType,
   SenderAccountStatus,
+  TemplateStatus,
   UserRole,
 } from '@tft/shared';
 
@@ -105,4 +106,37 @@ export interface SuppressionFlagsRow {
   email: string;
   suppressed: boolean;
   unsubscribed: boolean;
+}
+
+export interface TemplateCategoryRow {
+  id: string;
+  name: string;
+  default_template_id: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface EmailTemplateRow {
+  id: string;
+  category_id: string;
+  name: string;
+  status: TemplateStatus;
+  current_version_id: string | null;
+  created_by: string | null;
+  deleted_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface TemplateVersionRow {
+  id: string;
+  template_id: string;
+  version_no: number;
+  subject: string;
+  body_html: string;
+  body_text: string | null;
+  placeholders: string[];
+  created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
 }

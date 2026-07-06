@@ -11,10 +11,12 @@
     "test": "echo \"no tests yet\" && exit 0"
   },
   "dependencies": {
+    "@tft/shared": "*",
+    "@tiptap/react": "^3.27.2",
+    "@tiptap/starter-kit": "^3.27.2",
     "next": "16.2.10",
     "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "@tft/shared": "*"
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
