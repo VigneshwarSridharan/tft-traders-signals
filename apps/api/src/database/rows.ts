@@ -3,6 +3,7 @@ import type {
   MessageStatus,
   SenderAccountStatus,
   TemplateStatus,
+  TrackingEventType,
   UserRole,
 } from '@tft/shared';
 
@@ -172,6 +173,36 @@ export interface EmailMessageRow {
   unsubscribed_at: Date | null;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface EmailLinkRow {
+  id: string;
+  message_id: string;
+  token: string;
+  original_url: string;
+  link_label: string | null;
+  position: number | null;
+  click_count: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface TrackingEventRow {
+  id: string;
+  message_id: string;
+  link_id: string | null;
+  event_type: TrackingEventType;
+  occurred_at: Date;
+  ip: string | null;
+  user_agent: string | null;
+  device_type: string | null;
+  os: string | null;
+  browser: string | null;
+  geo_country: string | null;
+  geo_city: string | null;
+  is_bot: boolean;
+  is_proxy: boolean;
+  metadata: Record<string, unknown>;
 }
 
 export interface AttachmentRow {

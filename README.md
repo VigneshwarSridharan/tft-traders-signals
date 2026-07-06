@@ -68,6 +68,33 @@ npm run dev:api         # http://localhost:3000
 npm run dev:web          # http://localhost:3001
 ```
 
+### Tracking domain (DNS + TLS)
+
+The open pixel (`/o/{token}.gif`) and click redirect (`/c/{token}`) are served
+by the api container on the `TRACKING_HOST` Caddy block
+([docker/caddy/Caddyfile](./docker/caddy/Caddyfile)) — no separate service.
+
+For production:
+
+1. Point a subdomain of your sending domain (e.g. `track.yourdomain.com`) at
+   this host with an `A`/`AAAA` record. Using a subdomain of the *From*
+   domain — rather than a third-party tracking domain — is what keeps
+   tracked links looking legitimate to spam filters and recipients (see
+   [PRD §2.4](./docs/PRD.md#24-tracking-pixel--click-tracking-architecture)).
+2. Set `TRACKING_HOST` (Caddy) and `TRACKING_DOMAIN` (used to build the
+   pixel/link URLs at send time) to that hostname in `.env`.
+3. Caddy automatically obtains and renews a Let's Encrypt certificate for it
+   — no other TLS configuration needed. Locally, `TRACKING_HOST` defaults to
+   `track.localhost`, which Caddy serves with a locally-trusted self-signed
+   cert (`tls internal`).
+
+Optional: set `GEOLITE2_CITY_DB_PATH` to a MaxMind GeoLite2 City `.mmdb` file
+(mount it as a volume in `docker-compose.yml`, alongside the existing
+`attachments_data` volume pattern) to enrich open/click events with
+country/city. Requires a free MaxMind account — see
+[dev.maxmind.com/geoip/geolite2-free-geolocation-data](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data).
+Without it, tracking still works; events just have no geo data.
+
 ### Common scripts (run from repo root)
 
 | Command | Description |

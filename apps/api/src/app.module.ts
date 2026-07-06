@@ -14,6 +14,7 @@ import { TagsModule } from './tags/tags.module';
 import { TemplateCategoriesModule } from './template-categories/template-categories.module';
 import { TemplatesModule } from './templates/templates.module';
 import { EmailMessagesModule } from './email-messages/email-messages.module';
+import { TrackingModule } from './tracking/tracking.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { EmailMessagesModule } from './email-messages/email-messages.module';
     TemplateCategoriesModule,
     TemplatesModule,
     EmailMessagesModule,
+    TrackingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

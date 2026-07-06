@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmailMessagesService } from './email-messages.service';
+import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { CustomersRepository } from '../database/customers.repository';
@@ -96,6 +97,7 @@ function buildMessageRow(
 describe('EmailMessagesService', () => {
   let service: EmailMessagesService;
   let emailMessagesRepository: jest.Mocked<EmailMessagesRepository>;
+  let emailLinksRepository: jest.Mocked<EmailLinksRepository>;
   let senderAccountsRepository: jest.Mocked<SenderAccountsRepository>;
   let customersRepository: jest.Mocked<CustomersRepository>;
   let customFieldDefsRepository: jest.Mocked<CustomFieldDefsRepository>;
@@ -111,6 +113,10 @@ describe('EmailMessagesService', () => {
       findById: jest.fn(),
       getAttachments: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<EmailMessagesRepository>;
+
+    emailLinksRepository = {
+      create: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<EmailLinksRepository>;
 
     senderAccountsRepository = {
       findById: jest.fn().mockResolvedValue(buildSenderAccountRow()),
@@ -141,6 +147,7 @@ describe('EmailMessagesService', () => {
         if (key === 'ATTACHMENT_STORAGE_PATH')
           return '/tmp/tft-test-attachments';
         if (key === 'SEND_FROM_DOMAIN') return 'test.local';
+        if (key === 'TRACKING_DOMAIN') return 'track.test.local';
         return undefined;
       }),
     } as unknown as ConfigService<EnvConfig, true>;
@@ -151,6 +158,7 @@ describe('EmailMessagesService', () => {
 
     service = new EmailMessagesService(
       emailMessagesRepository,
+      emailLinksRepository,
       senderAccountsRepository,
       customersRepository,
       customFieldDefsRepository,
@@ -291,6 +299,56 @@ describe('EmailMessagesService', () => {
 
     expect(response.results[0].ok).toBe(false);
     expect(response.results[0].error).toContain('unsubscribed');
+  });
+
+  it('injects a tracking pixel and rewrites links when tracking is enabled', async () => {
+    await service.compose(
+      {
+        senderAccountId: 'sender-1',
+        customerIds: ['customer-1'],
+        subject: 'Hi',
+        bodyHtml: '<p>Hi <a href="https://example.com/quote">view</a></p>',
+      },
+      [],
+      'user-1',
+      'admin',
+    );
+
+    const createCall = emailMessagesRepository.create.mock.calls[0][0];
+    expect(createCall.trackingEnabled).toBe(true);
+    expect(createCall.bodyHtmlRendered).toContain(
+      'https://track.test.local/o/',
+    );
+    expect(emailLinksRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: 'message-1',
+        originalUrl: 'https://example.com/quote',
+      }),
+    );
+  });
+
+  it('does not inject tracking or persist links when tracking is disabled for the send', async () => {
+    await service.compose(
+      {
+        senderAccountId: 'sender-1',
+        customerIds: ['customer-1'],
+        subject: 'Hi',
+        bodyHtml: '<p>Hi <a href="https://example.com/quote">view</a></p>',
+        trackingEnabled: false,
+      },
+      [],
+      'user-1',
+      'admin',
+    );
+
+    expect(emailMessagesRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bodyHtmlRendered:
+          '<p>Hi <a href="https://example.com/quote">view</a></p>',
+        trackingEnabled: false,
+      }),
+    );
+    expect(emailLinksRepository.create).not.toHaveBeenCalled();
   });
 
   it('forces tracking off for a customer with tracking opt-out', async () => {
