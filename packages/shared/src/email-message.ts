@@ -47,3 +47,30 @@ export interface ComposeRecipientResult {
 export interface ComposeSendResponse {
   results: ComposeRecipientResult[];
 }
+
+export interface ComposeSenderAccountOption {
+  id: string;
+  email: string;
+  displayName: string | null;
+  dailyQuota: number | null;
+  dailyUsed: number;
+  hourlyQuota: number | null;
+  hourlyUsed: number;
+}
+
+export interface ComposeTestSendRequest {
+  senderAccountId: string;
+  templateVersionId?: string;
+  subject?: string;
+  bodyHtml?: string;
+  bodyText?: string | null;
+  customerId?: string;
+  fallbackValues?: Record<string, string>;
+}
+
+export interface ComposeTestSendResponse {
+  accepted: boolean;
+  to: string;
+  smtpResponse: string;
+  unresolvedPlaceholders: string[];
+}
