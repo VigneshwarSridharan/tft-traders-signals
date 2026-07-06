@@ -4,3 +4,5 @@ export * from "./tracking-event-type";
 export * from "./health";
 export * from "./auth";
 export * from "./user";
+export * from "./sender-account-status";
+export * from "./sender-account";

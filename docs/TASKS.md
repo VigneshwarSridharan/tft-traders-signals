@@ -49,7 +49,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** admin can invite a user; invited user sets password and logs in;
   unauthenticated API calls rejected.
 
-### ⬜ Task 4 — Sender account management (Zoho SMTP/IMAP connectivity) (M)
+### ✅ Task 4 — Sender account management (Zoho SMTP/IMAP connectivity) (M)
 **Depends on:** 3
 - CRUD for `sender_accounts` (admin only); app-password encryption at rest
   (AES-256-GCM envelope; key from env/secret store).
