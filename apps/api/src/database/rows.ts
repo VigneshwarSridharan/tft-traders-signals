@@ -1,5 +1,6 @@
 import type {
   CustomFieldType,
+  MessageStatus,
   SenderAccountStatus,
   TemplateStatus,
   UserRole,
@@ -137,6 +138,49 @@ export interface TemplateVersionRow {
   body_text: string | null;
   placeholders: string[];
   created_by: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface EmailMessageRow {
+  id: string;
+  public_token: string;
+  sender_account_id: string;
+  customer_id: string;
+  template_version_id: string | null;
+  sent_by: string | null;
+  to_email: string;
+  to_name: string | null;
+  subject: string | null;
+  body_html_rendered: string | null;
+  body_text_rendered: string | null;
+  message_id_header: string | null;
+  tracking_enabled: boolean;
+  status: MessageStatus;
+  smtp_response: string | null;
+  queued_at: Date | null;
+  sent_at: Date | null;
+  open_count: number;
+  unique_open_hint: boolean;
+  first_opened_at: Date | null;
+  last_opened_at: Date | null;
+  click_count: number;
+  first_clicked_at: Date | null;
+  last_clicked_at: Date | null;
+  replied_at: Date | null;
+  bounce_type: 'none' | 'hard' | 'soft';
+  unsubscribed_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface AttachmentRow {
+  id: string;
+  message_id: string;
+  filename: string;
+  content_type: string | null;
+  size_bytes: number | null;
+  storage_path: string;
   created_at: Date;
   updated_at: Date;
 }

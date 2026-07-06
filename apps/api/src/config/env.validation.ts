@@ -18,6 +18,8 @@ const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().min(1).default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   INVITATION_TTL_HOURS: z.coerce.number().int().positive().default(72),
+  ATTACHMENT_STORAGE_PATH: z.string().min(1).default('./storage/attachments'),
+  SEND_FROM_DOMAIN: z.string().min(1).default('tft-traders-signals.local'),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

@@ -10,3 +10,5 @@ process.env.JWT_ACCESS_SECRET ??=
 process.env.JWT_ACCESS_TTL ??= '15m';
 process.env.REFRESH_TOKEN_TTL_DAYS ??= '30';
 process.env.INVITATION_TTL_HOURS ??= '72';
+process.env.ATTACHMENT_STORAGE_PATH ??= '/tmp/tft-test-attachments';
+process.env.SEND_FROM_DOMAIN ??= 'test.local';

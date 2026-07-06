@@ -13,6 +13,7 @@ import { CustomFieldDefsModule } from './custom-field-defs/custom-field-defs.mod
 import { TagsModule } from './tags/tags.module';
 import { TemplateCategoriesModule } from './template-categories/template-categories.module';
 import { TemplatesModule } from './templates/templates.module';
+import { EmailMessagesModule } from './email-messages/email-messages.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TemplatesModule } from './templates/templates.module';
     TagsModule,
     TemplateCategoriesModule,
     TemplatesModule,
+    EmailMessagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
