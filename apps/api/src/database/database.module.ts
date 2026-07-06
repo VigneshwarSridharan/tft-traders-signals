@@ -7,6 +7,9 @@ import { UsersRepository } from './users.repository';
 import { SessionsRepository } from './sessions.repository';
 import { InvitationsRepository } from './invitations.repository';
 import { SenderAccountsRepository } from './sender-accounts.repository';
+import { CustomersRepository } from './customers.repository';
+import { CustomFieldDefsRepository } from './custom-field-defs.repository';
+import { TagsRepository } from './tags.repository';
 
 @Global()
 @Module({
@@ -25,6 +28,9 @@ import { SenderAccountsRepository } from './sender-accounts.repository';
     SessionsRepository,
     InvitationsRepository,
     SenderAccountsRepository,
+    CustomersRepository,
+    CustomFieldDefsRepository,
+    TagsRepository,
   ],
   exports: [
     PG_POOL,
@@ -32,6 +38,9 @@ import { SenderAccountsRepository } from './sender-accounts.repository';
     SessionsRepository,
     InvitationsRepository,
     SenderAccountsRepository,
+    CustomersRepository,
+    CustomFieldDefsRepository,
+    TagsRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {

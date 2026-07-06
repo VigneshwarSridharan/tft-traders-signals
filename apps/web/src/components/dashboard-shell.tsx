@@ -8,10 +8,16 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/customers", label: "Customers" },
   { href: "/dashboard/users", label: "Users", adminOnly: true },
   {
     href: "/dashboard/sender-accounts",
     label: "Sender Accounts",
+    adminOnly: true,
+  },
+  {
+    href: "/dashboard/custom-fields",
+    label: "Custom Fields",
     adminOnly: true,
   },
 ];
