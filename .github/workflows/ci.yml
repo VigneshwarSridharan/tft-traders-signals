@@ -7,6 +7,25 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: tft
+          POSTGRES_PASSWORD: tft
+          POSTGRES_DB: tft_traders_signals
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tft"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://tft:tft@localhost:5432/tft_traders_signals
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,6 +53,20 @@ jobs:
 
       - name: E2E test (api)
         run: npm run test:e2e --workspace apps/api
+
+      - name: Run migrations up
+        run: npm run migrate:up --workspace apps/api
+
+      - name: Run migrations down (verify clean rollback)
+        run: npm run migrate:down --workspace apps/api -- 10
+
+      - name: Run migrations up again
+        run: npm run migrate:up --workspace apps/api
+
+      - name: Seed database
+        run: npm run db:seed --workspace apps/api
+        env:
+          SEED_ADMIN_PASSWORD: ci-test-password
 
       - name: Build
         run: npm run build
