@@ -99,7 +99,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
   chosen Zoho account, appears in Zoho's Sent folder, and the message row shows
   `sent` with the SMTP response; killing the worker mid-queue loses nothing.
 
-### ⬜ Task 8 — Compose UI (L)
+### ✅ Task 8 — Compose UI (L)
 **Depends on:** 7
 - Compose flow per FR-4.1: account picker (with remaining quota), customer
   picker, template picker (grouped by category, default pre-selected), subject/

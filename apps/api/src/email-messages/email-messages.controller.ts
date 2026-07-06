@@ -11,19 +11,34 @@ import {
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import type { ComposeSendResponse, EmailMessageSummary } from '@tft/shared';
+import type {
+  ComposeSenderAccountOption,
+  ComposeSendResponse,
+  ComposeTestSendResponse,
+  EmailMessageSummary,
+} from '@tft/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { MAX_TOTAL_ATTACHMENT_BYTES } from './attachment-storage.util';
-import { parseComposePayload } from './dto/email-messages.schemas';
+import {
+  composeTestSendSchema,
+  parseComposePayload,
+  type ComposeTestSendDto,
+} from './dto/email-messages.schemas';
 import { EmailMessagesService } from './email-messages.service';
 
 @Controller('email-messages')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class EmailMessagesController {
   constructor(private readonly emailMessagesService: EmailMessagesService) {}
+
+  @Get('sender-accounts')
+  listSenderAccounts(): Promise<ComposeSenderAccountOption[]> {
+    return this.emailMessagesService.listSenderAccountOptions();
+  }
 
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<EmailMessageSummary> {
@@ -49,5 +64,14 @@ export class EmailMessagesController {
       user.sub,
       user.role,
     );
+  }
+
+  @Post('test-send')
+  testSend(
+    @Body(new ZodValidationPipe(composeTestSendSchema))
+    body: ComposeTestSendDto,
+    @CurrentUser() user: AccessTokenPayload,
+  ): Promise<ComposeTestSendResponse> {
+    return this.emailMessagesService.testSend(body, user.email);
   }
 }

@@ -24,6 +24,27 @@ export const composeSendSchema = z
 
 export type ComposeSendDto = z.infer<typeof composeSendSchema>;
 
+export const composeTestSendSchema = z
+  .object({
+    senderAccountId: z.string().uuid(),
+    templateVersionId: z.string().uuid().optional(),
+    subject: z.string().min(1).optional(),
+    bodyHtml: z.string().min(1).optional(),
+    bodyText: z.string().nullable().optional(),
+    customerId: z.string().uuid().optional(),
+    fallbackValues: z.record(z.string(), z.string()).optional(),
+  })
+  .refine(
+    (data) =>
+      Boolean(data.templateVersionId) || Boolean(data.subject && data.bodyHtml),
+    {
+      message:
+        'Either templateVersionId or both subject and bodyHtml must be provided',
+    },
+  );
+
+export type ComposeTestSendDto = z.infer<typeof composeTestSendSchema>;
+
 export function parseComposePayload(raw: string): ComposeSendDto {
   let parsed: unknown;
   try {

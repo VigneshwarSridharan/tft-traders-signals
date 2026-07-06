@@ -7,6 +7,7 @@ import type { EnvConfig } from '../config/env.validation';
 import { decryptSecret } from '../common/crypto.util';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
+import type { SenderAccountRow } from '../database/rows';
 import type { SendJobData } from './send-queue.service';
 
 const QUOTA_RETRY_DELAY_MS = 5 * 60 * 1000;
@@ -131,6 +132,44 @@ export class EmailSenderService {
         await this.emailMessagesRepository.markQueued(messageId);
       }
       throw error;
+    } finally {
+      transporter.close();
+    }
+  }
+
+  async sendNow(params: {
+    senderAccount: SenderAccountRow;
+    to: string;
+    toName?: string | null;
+    subject: string;
+    html?: string | null;
+    text?: string | null;
+  }): Promise<string> {
+    const { senderAccount } = params;
+    const password = decryptSecret(
+      senderAccount.credential_enc,
+      this.configService.get('APP_ENCRYPTION_KEY', { infer: true }),
+    );
+
+    const transporter = nodemailer.createTransport({
+      host: senderAccount.smtp_host,
+      port: senderAccount.smtp_port,
+      secure: senderAccount.smtp_port === 465,
+      auth: { user: senderAccount.email, pass: password },
+      connectionTimeout: 15_000,
+    });
+
+    try {
+      const info = await transporter.sendMail({
+        from: senderAccount.display_name
+          ? `"${senderAccount.display_name}" <${senderAccount.email}>`
+          : senderAccount.email,
+        to: params.toName ? `"${params.toName}" <${params.to}>` : params.to,
+        subject: params.subject,
+        html: params.html ?? undefined,
+        text: params.text ?? undefined,
+      });
+      return String(info.response ?? '250 OK');
     } finally {
       transporter.close();
     }

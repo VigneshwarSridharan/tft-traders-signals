@@ -6,6 +6,7 @@ import { SenderAccountsRepository } from '../database/sender-accounts.repository
 import { CustomersRepository } from '../database/customers.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { TemplatesRepository } from '../database/templates.repository';
+import { EmailSenderService } from '../send/email-sender.service';
 import { SendQueueService } from '../send/send-queue.service';
 import type {
   CustomerRow,
@@ -101,6 +102,7 @@ describe('EmailMessagesService', () => {
   let templatesRepository: jest.Mocked<TemplatesRepository>;
   let sendQueueService: jest.Mocked<SendQueueService>;
   let configService: ConfigService<EnvConfig, true>;
+  let emailSenderService: jest.Mocked<EmailSenderService>;
 
   beforeEach(() => {
     emailMessagesRepository = {
@@ -119,6 +121,7 @@ describe('EmailMessagesService', () => {
       findById: jest.fn().mockResolvedValue(buildCustomerRow()),
       getFieldValuesForCustomers: jest.fn().mockResolvedValue(new Map()),
       getSuppressionFlags: jest.fn().mockResolvedValue(new Map()),
+      getFieldValues: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<CustomersRepository>;
 
     customFieldDefsRepository = {
@@ -142,6 +145,10 @@ describe('EmailMessagesService', () => {
       }),
     } as unknown as ConfigService<EnvConfig, true>;
 
+    emailSenderService = {
+      sendNow: jest.fn().mockResolvedValue('250 OK'),
+    } as unknown as jest.Mocked<EmailSenderService>;
+
     service = new EmailMessagesService(
       emailMessagesRepository,
       senderAccountsRepository,
@@ -150,6 +157,7 @@ describe('EmailMessagesService', () => {
       templatesRepository,
       sendQueueService,
       configService,
+      emailSenderService,
     );
   });
 
@@ -349,5 +357,94 @@ describe('EmailMessagesService', () => {
         'admin',
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  describe('testSend', () => {
+    it('renders sample data and sends to the given address when no customer is picked', async () => {
+      const result = await service.testSend(
+        {
+          senderAccountId: 'sender-1',
+          subject: 'Hi {{customer.name}}',
+          bodyHtml: '<p>From {{sender.name}}</p>',
+        },
+        'me@company.com',
+      );
+
+      expect(result).toEqual({
+        accepted: true,
+        to: 'me@company.com',
+        smtpResponse: '250 OK',
+        unresolvedPlaceholders: [],
+      });
+      expect(emailSenderService.sendNow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'me@company.com',
+          subject: '[TEST] Hi Sample Customer',
+        }),
+      );
+    });
+
+    it('personalizes with the selected customer when provided', async () => {
+      await service.testSend(
+        {
+          senderAccountId: 'sender-1',
+          subject: 'Hi {{customer.name}}',
+          bodyHtml: '<p>Hi</p>',
+          customerId: 'customer-1',
+        },
+        'me@company.com',
+      );
+
+      expect(emailSenderService.sendNow).toHaveBeenCalledWith(
+        expect.objectContaining({ subject: '[TEST] Hi Jane Doe' }),
+      );
+    });
+
+    it('reports unresolved placeholders instead of failing', async () => {
+      const result = await service.testSend(
+        {
+          senderAccountId: 'sender-1',
+          subject: 'Quote {{quotation.custom_key}}',
+          bodyHtml: '<p>Hi</p>',
+        },
+        'me@company.com',
+      );
+
+      expect(result.unresolvedPlaceholders).toEqual(['quotation.custom_key']);
+      expect(emailSenderService.sendNow).toHaveBeenCalled();
+    });
+
+    it('rejects an unknown sender account', async () => {
+      senderAccountsRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.testSend(
+          {
+            senderAccountId: 'missing',
+            subject: 'Hi',
+            bodyHtml: '<p>Hi</p>',
+          },
+          'me@company.com',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(emailSenderService.sendNow).not.toHaveBeenCalled();
+    });
+
+    it('turns an SMTP failure into a BadRequestException with the underlying message', async () => {
+      emailSenderService.sendNow.mockRejectedValue(
+        new Error('Connection timeout'),
+      );
+
+      await expect(
+        service.testSend(
+          {
+            senderAccountId: 'sender-1',
+            subject: 'Hi',
+            bodyHtml: '<p>Hi</p>',
+          },
+          'me@company.com',
+        ),
+      ).rejects.toThrow('Failed to send test email: Connection timeout');
+    });
   });
 });

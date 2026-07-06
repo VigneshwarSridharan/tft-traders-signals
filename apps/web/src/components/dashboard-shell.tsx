@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/compose", label: "Compose" },
   { href: "/dashboard/customers", label: "Customers" },
   { href: "/dashboard/templates", label: "Templates" },
   { href: "/dashboard/users", label: "Users", adminOnly: true },

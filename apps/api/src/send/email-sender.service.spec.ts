@@ -205,4 +205,38 @@ describe('EmailSenderService', () => {
     );
     expect(emailMessagesRepository.markQueued).not.toHaveBeenCalled();
   });
+
+  describe('sendNow', () => {
+    it('sends immediately and returns the SMTP response without touching message state', async () => {
+      const response = await service.sendNow({
+        senderAccount: buildSenderAccountRow(),
+        to: 'me@company.com',
+        subject: '[TEST] Hello',
+        html: '<p>Hi</p>',
+        text: 'Hi',
+      });
+
+      expect(response).toBe('250 OK');
+      expect(sendMail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: '"Sales Team" <sales@company.com>',
+          to: 'me@company.com',
+          subject: '[TEST] Hello',
+        }),
+      );
+      expect(emailMessagesRepository.markSent).not.toHaveBeenCalled();
+    });
+
+    it('propagates SMTP errors', async () => {
+      sendMail.mockRejectedValue(new Error('Connection refused'));
+
+      await expect(
+        service.sendNow({
+          senderAccount: buildSenderAccountRow(),
+          to: 'me@company.com',
+          subject: 'Hello',
+        }),
+      ).rejects.toThrow('Connection refused');
+    });
+  });
 });

@@ -7,7 +7,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type {
   ComposeRecipientResult,
+  ComposeSenderAccountOption,
   ComposeSendResponse,
+  ComposeTestSendResponse,
   EmailMessageSummary,
   UserRole,
 } from '@tft/shared';
@@ -21,6 +23,7 @@ import { CustomersRepository } from '../database/customers.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { TemplatesRepository } from '../database/templates.repository';
+import { EmailSenderService } from '../send/email-sender.service';
 import { SendQueueService } from '../send/send-queue.service';
 import {
   htmlToPlainText,
@@ -28,12 +31,19 @@ import {
 } from '../templates/sanitize.util';
 import { renderMergeFields } from '../templates/merge-fields.util';
 import {
+  applyCustomerValues,
+  buildDefaultSampleValues,
+} from '../templates/sample-data.util';
+import {
   MAX_TOTAL_ATTACHMENT_BYTES,
   storeAttachment,
 } from './attachment-storage.util';
 import { buildComposeMergeValues } from './compose-merge.util';
 import { inlineCss } from './css-inline.util';
-import type { ComposeSendDto } from './dto/email-messages.schemas';
+import type {
+  ComposeSendDto,
+  ComposeTestSendDto,
+} from './dto/email-messages.schemas';
 import { toEmailMessageSummary } from './email-messages.mapper';
 
 interface UploadedAttachment {
@@ -55,6 +65,7 @@ export class EmailMessagesService {
     private readonly templatesRepository: TemplatesRepository,
     private readonly sendQueueService: SendQueueService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly emailSenderService: EmailSenderService,
   ) {}
 
   async get(id: string): Promise<EmailMessageSummary> {
@@ -267,5 +278,136 @@ export class EmailMessagesService {
     }
 
     return { results };
+  }
+
+  async testSend(
+    request: ComposeTestSendDto,
+    toEmail: string,
+  ): Promise<ComposeTestSendResponse> {
+    const senderAccount = await this.senderAccountsRepository.findById(
+      request.senderAccountId,
+    );
+    if (!senderAccount) {
+      throw new BadRequestException('Unknown sender account');
+    }
+    if (senderAccount.status !== 'active') {
+      throw new BadRequestException(
+        `Sender account is ${senderAccount.status} and cannot send`,
+      );
+    }
+
+    let subjectTemplate: string;
+    let bodyHtmlTemplate: string;
+    let bodyTextTemplate: string | null;
+
+    if (request.templateVersionId) {
+      const version = await this.templatesRepository.findVersionById(
+        request.templateVersionId,
+      );
+      if (!version) {
+        throw new BadRequestException('Unknown template version');
+      }
+      subjectTemplate = version.subject;
+      bodyHtmlTemplate = version.body_html;
+      bodyTextTemplate = version.body_text;
+    } else {
+      subjectTemplate = request.subject as string;
+      bodyHtmlTemplate = sanitizeTemplateHtml(request.bodyHtml as string);
+      bodyTextTemplate = request.bodyText ?? null;
+    }
+
+    const customFieldDefs = await this.customFieldDefsRepository.list();
+    const values = buildDefaultSampleValues(customFieldDefs);
+    values.set(
+      'sender.name',
+      senderAccount.display_name ?? senderAccount.email,
+    );
+    values.set('sender.signature', senderAccount.signature_html ?? '');
+
+    if (request.fallbackValues) {
+      for (const [key, value] of Object.entries(request.fallbackValues)) {
+        values.set(key, value);
+      }
+    }
+
+    if (request.customerId) {
+      const customer = await this.customersRepository.findById(
+        request.customerId,
+      );
+      if (!customer) {
+        throw new BadRequestException('Unknown customer');
+      }
+      const fieldValues = await this.customersRepository.getFieldValues(
+        customer.id,
+      );
+      const fieldDefsById = new Map(
+        customFieldDefs.map((def) => [def.id, def]),
+      );
+      applyCustomerValues(values, customer, fieldValues, fieldDefsById);
+    }
+
+    const subjectResult = renderMergeFields(subjectTemplate, values);
+    const bodyResult = renderMergeFields(bodyHtmlTemplate, values);
+    const bodyTextResult = bodyTextTemplate
+      ? renderMergeFields(bodyTextTemplate, values)
+      : null;
+
+    const unresolvedPlaceholders = [
+      ...new Set([
+        ...subjectResult.unresolved,
+        ...bodyResult.unresolved,
+        ...(bodyTextResult?.unresolved ?? []),
+      ]),
+    ];
+
+    const finalBodyHtml = inlineCss(bodyResult.rendered);
+    const finalBodyText = bodyTextResult
+      ? bodyTextResult.rendered
+      : htmlToPlainText(finalBodyHtml);
+
+    let smtpResponse: string;
+    try {
+      smtpResponse = await this.emailSenderService.sendNow({
+        senderAccount,
+        to: toEmail,
+        subject: `[TEST] ${subjectResult.rendered}`,
+        html: finalBodyHtml,
+        text: finalBodyText,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      throw new BadRequestException(`Failed to send test email: ${message}`);
+    }
+
+    return {
+      accepted: true,
+      to: toEmail,
+      smtpResponse,
+      unresolvedPlaceholders,
+    };
+  }
+
+  async listSenderAccountOptions(): Promise<ComposeSenderAccountOption[]> {
+    const [rows, usageByAccount] = await Promise.all([
+      this.senderAccountsRepository.list(),
+      this.senderAccountsRepository.getUsageForAll(),
+    ]);
+    return rows
+      .filter((row) => row.status === 'active')
+      .map((row) => {
+        const usage = usageByAccount.get(row.id) ?? {
+          dailyUsed: 0,
+          hourlyUsed: 0,
+        };
+        return {
+          id: row.id,
+          email: row.email,
+          displayName: row.display_name,
+          dailyQuota: row.daily_quota,
+          dailyUsed: usage.dailyUsed,
+          hourlyQuota: row.hourly_quota,
+          hourlyUsed: usage.hourlyUsed,
+        };
+      });
   }
 }
