@@ -20,6 +20,18 @@ const envSchema = z.object({
   INVITATION_TTL_HOURS: z.coerce.number().int().positive().default(72),
   ATTACHMENT_STORAGE_PATH: z.string().min(1).default('./storage/attachments'),
   SEND_FROM_DOMAIN: z.string().min(1).default('tft-traders-signals.local'),
+  GEOLITE2_CITY_DB_PATH: z.string().min(1).optional(),
+  TRACKING_CLICK_BOT_MIN_SECONDS: z.coerce
+    .number()
+    .int()
+    .nonnegative()
+    .default(3),
+  TRACKING_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
+  TRACKING_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60_000),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

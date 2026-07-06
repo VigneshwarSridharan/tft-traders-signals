@@ -13,6 +13,8 @@ import { TagsRepository } from './tags.repository';
 import { TemplateCategoriesRepository } from './template-categories.repository';
 import { TemplatesRepository } from './templates.repository';
 import { EmailMessagesRepository } from './email-messages.repository';
+import { EmailLinksRepository } from './email-links.repository';
+import { TrackingEventsRepository } from './tracking-events.repository';
 
 @Global()
 @Module({
@@ -37,6 +39,8 @@ import { EmailMessagesRepository } from './email-messages.repository';
     TemplateCategoriesRepository,
     TemplatesRepository,
     EmailMessagesRepository,
+    EmailLinksRepository,
+    TrackingEventsRepository,
   ],
   exports: [
     PG_POOL,
@@ -50,6 +54,8 @@ import { EmailMessagesRepository } from './email-messages.repository';
     TemplateCategoriesRepository,
     TemplatesRepository,
     EmailMessagesRepository,
+    EmailLinksRepository,
+    TrackingEventsRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {

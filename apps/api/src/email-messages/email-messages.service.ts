@@ -20,6 +20,7 @@ import {
 } from '../common/id.util';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { CustomersRepository } from '../database/customers.repository';
+import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { TemplatesRepository } from '../database/templates.repository';
@@ -45,6 +46,7 @@ import type {
   ComposeTestSendDto,
 } from './dto/email-messages.schemas';
 import { toEmailMessageSummary } from './email-messages.mapper';
+import { applyTracking, type RewrittenLink } from './tracking-injection.util';
 
 interface UploadedAttachment {
   filename: string;
@@ -59,6 +61,7 @@ export class EmailMessagesService {
 
   constructor(
     private readonly emailMessagesRepository: EmailMessagesRepository,
+    private readonly emailLinksRepository: EmailLinksRepository,
     private readonly senderAccountsRepository: SenderAccountsRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly customFieldDefsRepository: CustomFieldDefsRepository,
@@ -238,8 +241,22 @@ export class EmailMessagesService {
         ? false
         : (request.trackingEnabled ?? true);
 
+      const publicToken = generatePublicToken();
+      let bodyHtmlForSend = finalBodyHtml;
+      let linksToPersist: RewrittenLink[] = [];
+      if (trackingEnabled) {
+        const trackingResult = applyTracking(finalBodyHtml, {
+          publicToken,
+          trackingDomain: this.configService.get('TRACKING_DOMAIN', {
+            infer: true,
+          }),
+        });
+        bodyHtmlForSend = trackingResult.html;
+        linksToPersist = trackingResult.links;
+      }
+
       const message = await this.emailMessagesRepository.create({
-        publicToken: generatePublicToken(),
+        publicToken,
         senderAccountId: senderAccount.id,
         customerId: customer.id,
         templateVersionId,
@@ -247,7 +264,7 @@ export class EmailMessagesService {
         toEmail: customer.email,
         toName: customer.name,
         subject: subjectResult.rendered,
-        bodyHtmlRendered: finalBodyHtml,
+        bodyHtmlRendered: bodyHtmlForSend,
         bodyTextRendered: finalBodyText,
         messageIdHeader: generateMessageIdHeader(
           this.configService.get('SEND_FROM_DOMAIN', { infer: true }),
@@ -256,6 +273,16 @@ export class EmailMessagesService {
         status: 'queued',
         queuedAt: new Date(),
       });
+
+      for (const link of linksToPersist) {
+        await this.emailLinksRepository.create({
+          messageId: message.id,
+          token: link.token,
+          originalUrl: link.originalUrl,
+          linkLabel: link.label,
+          position: link.position,
+        });
+      }
 
       for (const file of storedFiles) {
         await this.emailMessagesRepository.createAttachment({

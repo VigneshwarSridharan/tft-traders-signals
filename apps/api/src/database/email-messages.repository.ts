@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
 import type { MessageStatus } from '@tft/shared';
 import { PG_POOL } from './database.constants';
+import type { Queryable } from './queryable';
 import type { AttachmentRow, EmailMessageRow } from './rows';
 
 export interface CreateEmailMessageInput {
@@ -67,6 +68,47 @@ export class EmailMessagesRepository {
       [id],
     );
     return rows[0] ?? null;
+  }
+
+  async findByPublicToken(
+    publicToken: string,
+  ): Promise<EmailMessageRow | null> {
+    const { rows } = await this.pool.query<EmailMessageRow>(
+      `SELECT * FROM email_messages WHERE public_token = $1`,
+      [publicToken],
+    );
+    return rows[0] ?? null;
+  }
+
+  async recordOpen(
+    id: string,
+    occurredAt: Date,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `UPDATE email_messages
+       SET open_count = open_count + 1,
+           unique_open_hint = true,
+           first_opened_at = COALESCE(first_opened_at, $2),
+           last_opened_at = $2
+       WHERE id = $1`,
+      [id, occurredAt],
+    );
+  }
+
+  async recordClick(
+    id: string,
+    occurredAt: Date,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `UPDATE email_messages
+       SET click_count = click_count + 1,
+           first_clicked_at = COALESCE(first_clicked_at, $2),
+           last_clicked_at = $2
+       WHERE id = $1`,
+      [id, occurredAt],
+    );
   }
 
   async markSending(id: string): Promise<void> {

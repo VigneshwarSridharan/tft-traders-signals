@@ -108,7 +108,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** full compose → preview → send journey works from the browser on
   desktop and mobile widths; draft survives page reload.
 
-### ⬜ Task 9 — Tracking service: pixel + click redirect (L)
+### ✅ Task 9 — Tracking service: pixel + click redirect (L)
 **Depends on:** 7
 - Send-time processing: inject `<img src="https://TRACK_DOMAIN/o/{token}.gif">`
   and rewrite all `<a href>` (skip `mailto:`/anchors) into `/c/{token}` links,
