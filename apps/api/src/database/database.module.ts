@@ -15,6 +15,9 @@ import { TemplatesRepository } from './templates.repository';
 import { EmailMessagesRepository } from './email-messages.repository';
 import { EmailLinksRepository } from './email-links.repository';
 import { TrackingEventsRepository } from './tracking-events.repository';
+import { InboundRepository } from './inbound.repository';
+import { SuppressionsRepository } from './suppressions.repository';
+import { AuditLogsRepository } from './audit-logs.repository';
 
 @Global()
 @Module({
@@ -41,6 +44,9 @@ import { TrackingEventsRepository } from './tracking-events.repository';
     EmailMessagesRepository,
     EmailLinksRepository,
     TrackingEventsRepository,
+    InboundRepository,
+    SuppressionsRepository,
+    AuditLogsRepository,
   ],
   exports: [
     PG_POOL,
@@ -56,6 +62,9 @@ import { TrackingEventsRepository } from './tracking-events.repository';
     EmailMessagesRepository,
     EmailLinksRepository,
     TrackingEventsRepository,
+    InboundRepository,
+    SuppressionsRepository,
+    AuditLogsRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {

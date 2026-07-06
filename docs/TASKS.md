@@ -128,7 +128,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
   the right link; Outlook SafeLinks-style prefetch is flagged as bot and
   excluded from counters.
 
-### ⬜ Task 10 — Inbound worker: bounce detection & suppression (L)
+### ✅ Task 10 — Inbound worker: bounce detection & suppression (L)
 **Depends on:** 7
 - IMAP sync per sender account (polling with stored UID cursor; IDLE if stable),
   idempotent intake into `inbound_messages`.

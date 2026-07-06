@@ -27,6 +27,11 @@ const NAV_ITEMS = [
     label: "Template Categories",
     adminOnly: true,
   },
+  {
+    href: "/dashboard/suppressions",
+    label: "Suppressions",
+    adminOnly: true,
+  },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
