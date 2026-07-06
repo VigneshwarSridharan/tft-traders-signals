@@ -15,11 +15,65 @@ email across five sender accounts.
 
 ## Status
 
-📋 Planning phase — no application code yet. Implementation begins with
-[Task 1: Project scaffolding](./docs/TASKS.md#-task-1--project-scaffolding--infrastructure-m).
+🚧 [Task 1: Project scaffolding](./docs/TASKS.md#-task-1--project-scaffolding--infrastructure-m)
+complete — monorepo, Docker Compose, and CI are in place. No product features
+yet; next up is [Task 2: database schema](./docs/TASKS.md#-task-2--database-schema--migrations-m).
 
-## Proposed stack
+## Stack
 
 Node.js + TypeScript (NestJS API, Next.js dashboard) · PostgreSQL 16 ·
 Redis + BullMQ workers · Docker Compose. Rationale in
 [PRD §2.6](./docs/PRD.md#26-recommended-technology-stack).
+
+## Repo layout
+
+```
+apps/
+  api/      NestJS API — also runs as the worker process (src/worker.ts)
+  web/      Next.js dashboard
+packages/
+  shared/   TypeScript types shared between api and web
+docker/     Dockerfiles + Caddy reverse-proxy config
+docs/       PRD, ERD, task breakdown
+```
+
+## Getting started
+
+Prerequisites: Node.js 22+, Docker & Docker Compose.
+
+```bash
+cp .env.example .env   # fill in real values before using this outside local dev
+npm install
+```
+
+### Run with Docker Compose (full stack)
+
+```bash
+docker compose up --build
+```
+
+This starts Postgres, Redis, the api, the worker, the web dashboard, and a
+Caddy reverse proxy. Once up:
+
+- API health check: http://localhost:3000/health
+- Dashboard: http://localhost:3001
+- Via the reverse proxy (locally-trusted TLS cert): https://dashboard.localhost
+  and https://api.localhost/health
+
+### Run locally without Docker
+
+```bash
+npm run build:shared   # apps/api and apps/web import compiled output from packages/shared
+npm run dev:api         # http://localhost:3000
+npm run dev:web          # http://localhost:3001
+```
+
+### Common scripts (run from repo root)
+
+| Command | Description |
+|---|---|
+| `npm run lint` | Lint all workspaces |
+| `npm run typecheck` | Typecheck all workspaces |
+| `npm run test` | Unit tests for all workspaces |
+| `npm run build` | Production build for all workspaces |
+| `npm run test:e2e --workspace apps/api` | API e2e tests (supertest) |

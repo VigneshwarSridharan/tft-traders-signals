@@ -1,0 +1,26 @@
+# Reverse proxy / TLS termination for local development.
+#
+# Production: replace the {$...} placeholders below with real DNS hostnames
+# (e.g. app.yourdomain.com, track.yourdomain.com) pointed at this host, and
+# Caddy will automatically obtain and renew Let's Encrypt certificates — no
+# other change needed. For local dev, `tls internal` issues a locally-trusted
+# self-signed certificate instead.
+
+{$DASHBOARD_HOST:dashboard.localhost} {
+	tls internal
+	reverse_proxy web:3000
+}
+
+{$API_HOST:api.localhost} {
+	tls internal
+	reverse_proxy api:3000
+}
+
+# Tracking pixel / click-redirect endpoints (served by the api container in
+# Phase 1; see docs/TASKS.md Task 9). Kept on its own host block since this
+# is the public, unauthenticated tracking domain referenced in outbound
+# emails and must resolve independently of the dashboard/API hostnames.
+{$TRACKING_HOST:track.localhost} {
+	tls internal
+	reverse_proxy api:3000
+}

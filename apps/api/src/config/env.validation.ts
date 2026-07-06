@@ -1,0 +1,30 @@
+import { z } from 'zod';
+
+const envSchema = z.object({
+  NODE_ENV: z
+    .enum(['development', 'test', 'production'])
+    .default('development'),
+  PORT: z.coerce.number().int().positive().default(3000),
+  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
+  TRACKING_DOMAIN: z.string().min(1, 'TRACKING_DOMAIN is required'),
+  APP_ENCRYPTION_KEY: z
+    .string()
+    .min(32, 'APP_ENCRYPTION_KEY must be at least 32 characters'),
+  WEB_APP_URL: z.string().min(1, 'WEB_APP_URL is required'),
+});
+
+export type EnvConfig = z.infer<typeof envSchema>;
+
+export function validateEnv(config: Record<string, unknown>): EnvConfig {
+  const result = envSchema.safeParse(config);
+
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+      .join('\n');
+    throw new Error(`Invalid environment configuration:\n${issues}`);
+  }
+
+  return result.data;
+}

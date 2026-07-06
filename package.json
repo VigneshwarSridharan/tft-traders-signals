@@ -1,0 +1,21 @@
+{
+  "name": "tft-traders-signals",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:shared": "npm run build --workspace packages/shared",
+    "dev:api": "npm run build:shared && npm run start:dev --workspace apps/api",
+    "dev:web": "npm run build:shared && npm run dev --workspace apps/web",
+    "build": "npm run build:shared && npm run build --workspace apps/api && npm run build --workspace apps/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run build:shared && npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/web",
+    "test": "npm run build:shared && npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
