@@ -1,4 +1,4 @@
-import type { UserRole } from '@tft/shared';
+import type { SenderAccountStatus, UserRole } from '@tft/shared';
 
 export interface UserRow {
   id: string;
@@ -35,6 +35,25 @@ export interface InvitationRow {
   expires_at: Date;
   accepted_at: Date | null;
   revoked_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface SenderAccountRow {
+  id: string;
+  email: string;
+  display_name: string | null;
+  smtp_host: string;
+  smtp_port: number;
+  imap_host: string;
+  imap_port: number;
+  credential_enc: Buffer;
+  signature_html: string | null;
+  daily_quota: number | null;
+  hourly_quota: number | null;
+  status: SenderAccountStatus;
+  last_verified_at: Date | null;
+  imap_last_uid: string;
   created_at: Date;
   updated_at: Date;
 }

@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { SenderAccountsModule } from './sender-accounts/sender-accounts.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UsersModule } from './users/users.module';
     HealthModule,
     AuthModule,
     UsersModule,
+    SenderAccountsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

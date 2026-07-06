@@ -6,6 +6,7 @@ import { PG_POOL } from './database.constants';
 import { UsersRepository } from './users.repository';
 import { SessionsRepository } from './sessions.repository';
 import { InvitationsRepository } from './invitations.repository';
+import { SenderAccountsRepository } from './sender-accounts.repository';
 
 @Global()
 @Module({
@@ -23,12 +24,14 @@ import { InvitationsRepository } from './invitations.repository';
     UsersRepository,
     SessionsRepository,
     InvitationsRepository,
+    SenderAccountsRepository,
   ],
   exports: [
     PG_POOL,
     UsersRepository,
     SessionsRepository,
     InvitationsRepository,
+    SenderAccountsRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {
