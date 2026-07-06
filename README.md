@@ -16,8 +16,10 @@ email across five sender accounts.
 ## Status
 
 🚧 [Task 1: Project scaffolding](./docs/TASKS.md#-task-1--project-scaffolding--infrastructure-m)
-complete — monorepo, Docker Compose, and CI are in place. No product features
-yet; next up is [Task 2: database schema](./docs/TASKS.md#-task-2--database-schema--migrations-m).
+and [Task 2: database schema](./docs/TASKS.md#-task-2--database-schema--migrations-m)
+complete — monorepo, Docker Compose, CI, and the full ERD as migrations are in
+place. No product features yet; next up is
+[Task 3: authentication & user management](./docs/TASKS.md#-task-3--authentication--user-management-m).
 
 ## Stack
 
@@ -77,3 +79,17 @@ npm run dev:web          # http://localhost:3001
 | `npm run test` | Unit tests for all workspaces |
 | `npm run build` | Production build for all workspaces |
 | `npm run test:e2e --workspace apps/api` | API e2e tests (supertest) |
+
+### Database
+
+Migrations ([node-pg-migrate](https://github.com/salsita/node-pg-migrate)) and
+the seed script live under `apps/api/db`, independent of the app's eventual
+ORM/query layer. They read `DATABASE_URL` from the environment (or
+`apps/api/.env`).
+
+| Command (run from `apps/api`) | Description |
+|---|---|
+| `npm run db:migrate:up` | Apply all pending migrations |
+| `npm run db:migrate:down -- 0` | Roll back every migration (empties the schema) |
+| `npm run db:migrate:create -- <name>` | Scaffold a new migration file |
+| `npm run db:seed` | Seed template categories, default settings, and an admin user (`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, defaults to `admin@example.com` / `ChangeMe123!` — change this in any shared environment) |

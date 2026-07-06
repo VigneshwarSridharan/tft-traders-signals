@@ -30,7 +30,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** `docker compose up` serves a health-check API endpoint and a
   placeholder dashboard page; CI green.
 
-### ⬜ Task 2 — Database schema & migrations (M)
+### ✅ Task 2 — Database schema & migrations (M)
 **Depends on:** 1
 - Implement the full [ERD](./ERD.md) as migrations (all tables, enums, indexes,
   monthly partitioning for `tracking_events`, `citext` extension, updated_at
