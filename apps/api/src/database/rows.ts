@@ -1,4 +1,8 @@
-import type { SenderAccountStatus, UserRole } from '@tft/shared';
+import type {
+  CustomFieldType,
+  SenderAccountStatus,
+  UserRole,
+} from '@tft/shared';
 
 export interface UserRow {
   id: string;
@@ -56,4 +60,49 @@ export interface SenderAccountRow {
   imap_last_uid: string;
   created_at: Date;
   updated_at: Date;
+}
+
+export interface CustomerRow {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string;
+  phone: string | null;
+  notes: string | null;
+  tracking_opt_out: boolean;
+  engagement_score: number;
+  deleted_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface CustomFieldDefRow {
+  id: string;
+  key: string;
+  label: string;
+  field_type: CustomFieldType;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface CustomerFieldValueRow {
+  customer_id: string;
+  field_def_id: string;
+  value: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface TagRow {
+  id: string;
+  name: string;
+  color: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface SuppressionFlagsRow {
+  email: string;
+  suppressed: boolean;
+  unsubscribed: boolean;
 }

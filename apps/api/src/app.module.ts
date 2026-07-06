@@ -8,6 +8,9 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SenderAccountsModule } from './sender-accounts/sender-accounts.module';
+import { CustomersModule } from './customers/customers.module';
+import { CustomFieldDefsModule } from './custom-field-defs/custom-field-defs.module';
+import { TagsModule } from './tags/tags.module';
 
 @Module({
   imports: [
@@ -20,6 +23,9 @@ import { SenderAccountsModule } from './sender-accounts/sender-accounts.module';
     AuthModule,
     UsersModule,
     SenderAccountsModule,
+    CustomersModule,
+    CustomFieldDefsModule,
+    TagsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
