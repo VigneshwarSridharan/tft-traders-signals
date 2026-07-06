@@ -51,11 +51,11 @@ jobs:
       - name: Test
         run: npm run test
 
-      - name: E2E test (api)
-        run: npm run test:e2e --workspace apps/api
-
       - name: Run migrations up
         run: npm run migrate:up --workspace apps/api
+
+      - name: E2E test (api)
+        run: npm run test:e2e --workspace apps/api
 
       - name: Run migrations down (verify clean rollback)
         run: npm run migrate:down --workspace apps/api -- 10

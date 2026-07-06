@@ -39,7 +39,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** migrations run clean up/down on empty DB; seed produces a
   loginable admin; schema matches ERD review.
 
-### ⬜ Task 3 — Authentication & user management (M)
+### ✅ Task 3 — Authentication & user management (M)
 **Depends on:** 2
 - Email+password login (argon2id), sessions with refresh rotation, logout.
 - User CRUD (admin only), roles stored (RBAC *enforcement* matures in Task 19,
