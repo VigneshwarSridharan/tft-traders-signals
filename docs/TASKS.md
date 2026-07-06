@@ -83,7 +83,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** create → edit → duplicate → archive a Quotation template;
   preview renders merged sample data; version history visible.
 
-### ⬜ Task 7 — Send pipeline: queue, rendering, SMTP worker (L)
+### ✅ Task 7 — Send pipeline: queue, rendering, SMTP worker (L)
 **Depends on:** 4, 5, 6
 - Compose API: sender + customer(s) + template/ad-hoc body + attachments →
   per-recipient `email_messages` rows (status `queued`) with merged

@@ -43,6 +43,9 @@ services:
       # against these same containers' published ports.
       DATABASE_URL: postgresql://${POSTGRES_USER:-tft}:${POSTGRES_PASSWORD:-tft}@postgres:5432/${POSTGRES_DB:-tft_traders_signals}
       REDIS_URL: redis://redis:6379
+      ATTACHMENT_STORAGE_PATH: /repo/storage/attachments
+    volumes:
+      - attachments_data:/repo/storage/attachments
     depends_on:
       postgres:
         condition: service_healthy
@@ -62,6 +65,9 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tft}:${POSTGRES_PASSWORD:-tft}@postgres:5432/${POSTGRES_DB:-tft_traders_signals}
       REDIS_URL: redis://redis:6379
+      ATTACHMENT_STORAGE_PATH: /repo/storage/attachments
+    volumes:
+      - attachments_data:/repo/storage/attachments
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,3 +110,4 @@ volumes:
   redis_data:
   caddy_data:
   caddy_config:
+  attachments_data:

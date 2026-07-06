@@ -1,10 +1,21 @@
-import { validateEnv } from './config/env.validation';
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { startSendWorker } from './send/send-worker.bootstrap';
 
-validateEnv(process.env);
+async function bootstrap() {
+  const app = await NestFactory.createApplicationContext(AppModule);
+  const worker = startSendWorker(app);
 
-console.log(
-  'Worker process started. Send-queue and inbound-mail processing land in later tasks (see docs/TASKS.md).',
-);
+  const shutdown = () => {
+    void (async () => {
+      await worker.close();
+      await app.close();
+      process.exit(0);
+    })();
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 
-// Keep the process alive so the container stays up until real job processing is added.
-setInterval(() => {}, 1 << 30);
+  console.log('Worker process started: consuming the send-email queue.');
+}
+void bootstrap();

@@ -12,6 +12,7 @@ import { CustomFieldDefsRepository } from './custom-field-defs.repository';
 import { TagsRepository } from './tags.repository';
 import { TemplateCategoriesRepository } from './template-categories.repository';
 import { TemplatesRepository } from './templates.repository';
+import { EmailMessagesRepository } from './email-messages.repository';
 
 @Global()
 @Module({
@@ -35,6 +36,7 @@ import { TemplatesRepository } from './templates.repository';
     TagsRepository,
     TemplateCategoriesRepository,
     TemplatesRepository,
+    EmailMessagesRepository,
   ],
   exports: [
     PG_POOL,
@@ -47,6 +49,7 @@ import { TemplatesRepository } from './templates.repository';
     TagsRepository,
     TemplateCategoriesRepository,
     TemplatesRepository,
+    EmailMessagesRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {

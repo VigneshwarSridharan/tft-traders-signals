@@ -12,3 +12,4 @@ export * from "./tag";
 export * from "./customer";
 export * from "./template-status";
 export * from "./template";
+export * from "./email-message";
