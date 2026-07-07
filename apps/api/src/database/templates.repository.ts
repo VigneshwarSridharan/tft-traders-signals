@@ -168,4 +168,29 @@ export class TemplatesRepository {
     );
     return new Map(rows.map((row) => [row.id, row]));
   }
+
+  async findTemplateNamesForVersionIds(
+    versionIds: string[],
+  ): Promise<Map<string, { templateId: string; templateName: string }>> {
+    if (versionIds.length === 0) {
+      return new Map();
+    }
+    const { rows } = await this.pool.query<{
+      version_id: string;
+      template_id: string;
+      template_name: string;
+    }>(
+      `SELECT tv.id AS version_id, tv.template_id, t.name AS template_name
+       FROM template_versions tv
+       JOIN email_templates t ON t.id = tv.template_id
+       WHERE tv.id = ANY($1::uuid[])`,
+      [versionIds],
+    );
+    return new Map(
+      rows.map((row) => [
+        row.version_id,
+        { templateId: row.template_id, templateName: row.template_name },
+      ]),
+    );
+  }
 }

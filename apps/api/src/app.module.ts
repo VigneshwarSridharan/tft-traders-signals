@@ -17,6 +17,7 @@ import { EmailMessagesModule } from './email-messages/email-messages.module';
 import { TrackingModule } from './tracking/tracking.module';
 import { InboundModule } from './inbound/inbound.module';
 import { SuppressionsModule } from './suppressions/suppressions.module';
+import { SentMailModule } from './sent-mail/sent-mail.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { SuppressionsModule } from './suppressions/suppressions.module';
     TrackingModule,
     InboundModule,
     SuppressionsModule,
+    SentMailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

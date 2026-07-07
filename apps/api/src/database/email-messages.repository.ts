@@ -1,9 +1,35 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
-import type { BounceClass, MessageStatus } from '@tft/shared';
+import type {
+  BounceClass,
+  MessageStatus,
+  SentMailSortField,
+} from '@tft/shared';
 import { PG_POOL } from './database.constants';
 import type { Queryable } from './queryable';
 import type { AttachmentRow, EmailMessageRow } from './rows';
+
+export interface EmailMessageListFilter {
+  search?: string;
+  status?: MessageStatus;
+  senderAccountId?: string;
+  templateId?: string;
+  tagId?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  sort: SentMailSortField;
+  sortDir: 'asc' | 'desc';
+  page: number;
+  pageSize: number;
+}
+
+const SORT_COLUMNS: Record<SentMailSortField, string> = {
+  sentAt: 'sent_at',
+  createdAt: 'created_at',
+  toEmail: 'to_email',
+  subject: 'subject',
+  status: 'status',
+};
 
 export interface CreateEmailMessageInput {
   publicToken: string;
@@ -60,6 +86,78 @@ export class EmailMessagesRepository {
       ],
     );
     return rows[0];
+  }
+
+  async list(
+    filter: EmailMessageListFilter,
+  ): Promise<{ rows: EmailMessageRow[]; total: number }> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filter.search) {
+      params.push(`%${filter.search}%`);
+      conditions.push(
+        `(to_email ILIKE $${params.length} OR subject ILIKE $${params.length})`,
+      );
+    }
+    if (filter.status) {
+      params.push(filter.status);
+      conditions.push(`status = $${params.length}`);
+    }
+    if (filter.senderAccountId) {
+      params.push(filter.senderAccountId);
+      conditions.push(`sender_account_id = $${params.length}`);
+    }
+    if (filter.templateId) {
+      params.push(filter.templateId);
+      conditions.push(
+        `EXISTS (
+           SELECT 1 FROM template_versions tv
+           WHERE tv.id = email_messages.template_version_id
+             AND tv.template_id = $${params.length}
+         )`,
+      );
+    }
+    if (filter.tagId) {
+      params.push(filter.tagId);
+      conditions.push(
+        `EXISTS (
+           SELECT 1 FROM taggings tg
+           WHERE tg.entity_type = 'message'
+             AND tg.entity_id = email_messages.id
+             AND tg.tag_id = $${params.length}
+         )`,
+      );
+    }
+    if (filter.dateFrom) {
+      params.push(filter.dateFrom);
+      conditions.push(`COALESCE(sent_at, created_at) >= $${params.length}`);
+    }
+    if (filter.dateTo) {
+      params.push(filter.dateTo);
+      conditions.push(`COALESCE(sent_at, created_at) <= $${params.length}`);
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const sortColumn = SORT_COLUMNS[filter.sort];
+    const sortDir = filter.sortDir === 'desc' ? 'DESC' : 'ASC';
+    const offset = (filter.page - 1) * filter.pageSize;
+
+    const countResult = await this.pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM email_messages ${whereClause}`,
+      params,
+    );
+
+    const { rows } = await this.pool.query<EmailMessageRow>(
+      `SELECT * FROM email_messages
+       ${whereClause}
+       ORDER BY ${sortColumn} ${sortDir}, id ASC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, filter.pageSize, offset],
+    );
+
+    return { rows, total: Number(countResult.rows[0]?.count ?? '0') };
   }
 
   async findById(id: string): Promise<EmailMessageRow | null> {
