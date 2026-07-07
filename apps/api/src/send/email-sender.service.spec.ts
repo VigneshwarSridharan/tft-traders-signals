@@ -145,9 +145,38 @@ describe('EmailSenderService', () => {
     );
   });
 
+  it('sends a scheduled message the same way as a queued one once its delayed job fires', async () => {
+    emailMessagesRepository.findById.mockResolvedValue(
+      buildMessageRow({ status: 'scheduled', queued_at: null }),
+    );
+
+    await service.processSendJob(buildJob() as never, 'token-1');
+
+    expect(emailMessagesRepository.markSending).toHaveBeenCalledWith(
+      'message-1',
+    );
+    expect(sendMail).toHaveBeenCalled();
+    expect(emailMessagesRepository.markSent).toHaveBeenCalledWith(
+      'message-1',
+      '250 OK',
+      expect.any(Date),
+    );
+  });
+
   it('is idempotent when the message was already sent', async () => {
     emailMessagesRepository.findById.mockResolvedValue(
       buildMessageRow({ status: 'sent' }),
+    );
+
+    await service.processSendJob(buildJob() as never, 'token-1');
+
+    expect(sendMail).not.toHaveBeenCalled();
+    expect(emailMessagesRepository.markSending).not.toHaveBeenCalled();
+  });
+
+  it('skips a scheduled send that was cancelled before the delayed job fired', async () => {
+    emailMessagesRepository.findById.mockResolvedValue(
+      buildMessageRow({ status: 'cancelled' }),
     );
 
     await service.processSendJob(buildJob() as never, 'token-1');

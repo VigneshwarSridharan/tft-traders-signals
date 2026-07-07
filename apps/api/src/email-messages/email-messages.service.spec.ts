@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { EmailMessagesService } from './email-messages.service';
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { ScheduledSendsRepository } from '../database/scheduled-sends.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
@@ -103,6 +104,7 @@ describe('EmailMessagesService', () => {
   let customFieldDefsRepository: jest.Mocked<CustomFieldDefsRepository>;
   let templatesRepository: jest.Mocked<TemplatesRepository>;
   let sendQueueService: jest.Mocked<SendQueueService>;
+  let scheduledSendsRepository: jest.Mocked<ScheduledSendsRepository>;
   let configService: ConfigService<EnvConfig, true>;
   let emailSenderService: jest.Mocked<EmailSenderService>;
 
@@ -140,7 +142,12 @@ describe('EmailMessagesService', () => {
 
     sendQueueService = {
       enqueueSend: jest.fn().mockResolvedValue(undefined),
+      enqueueScheduled: jest.fn().mockResolvedValue('job-1'),
     } as unknown as jest.Mocked<SendQueueService>;
+
+    scheduledSendsRepository = {
+      create: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<ScheduledSendsRepository>;
 
     configService = {
       get: jest.fn((key: string) => {
@@ -164,6 +171,7 @@ describe('EmailMessagesService', () => {
       customFieldDefsRepository,
       templatesRepository,
       sendQueueService,
+      scheduledSendsRepository,
       configService,
       emailSenderService,
     );

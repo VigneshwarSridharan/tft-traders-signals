@@ -12,6 +12,8 @@ export const composeSendSchema = z
     fallbackValues: z.record(z.string(), z.string()).optional(),
     trackingEnabled: z.boolean().optional(),
     overrideSuppression: z.boolean().optional(),
+    scheduledFor: z.coerce.date().optional(),
+    timezone: z.string().optional(),
   })
   .refine(
     (data) =>
@@ -20,6 +22,10 @@ export const composeSendSchema = z
       message:
         'Either templateVersionId or both subject and bodyHtml must be provided',
     },
+  )
+  .refine(
+    (data) => !data.scheduledFor || data.scheduledFor.getTime() > Date.now(),
+    { message: 'scheduledFor must be in the future', path: ['scheduledFor'] },
   );
 
 export type ComposeSendDto = z.infer<typeof composeSendSchema>;

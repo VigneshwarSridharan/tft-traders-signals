@@ -22,6 +22,7 @@ import { CustomFieldDefsRepository } from '../database/custom-field-defs.reposit
 import { CustomersRepository } from '../database/customers.repository';
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { ScheduledSendsRepository } from '../database/scheduled-sends.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { TemplatesRepository } from '../database/templates.repository';
 import { EmailSenderService } from '../send/email-sender.service';
@@ -67,6 +68,7 @@ export class EmailMessagesService {
     private readonly customFieldDefsRepository: CustomFieldDefsRepository,
     private readonly templatesRepository: TemplatesRepository,
     private readonly sendQueueService: SendQueueService,
+    private readonly scheduledSendsRepository: ScheduledSendsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly emailSenderService: EmailSenderService,
   ) {}
@@ -270,8 +272,8 @@ export class EmailMessagesService {
           this.configService.get('SEND_FROM_DOMAIN', { infer: true }),
         ),
         trackingEnabled,
-        status: 'queued',
-        queuedAt: new Date(),
+        status: request.scheduledFor ? 'scheduled' : 'queued',
+        queuedAt: request.scheduledFor ? null : new Date(),
       });
 
       for (const link of linksToPersist) {
@@ -294,7 +296,20 @@ export class EmailMessagesService {
         });
       }
 
-      await this.sendQueueService.enqueueSend(message.id);
+      if (request.scheduledFor) {
+        const jobId = await this.sendQueueService.enqueueScheduled(
+          message.id,
+          request.scheduledFor,
+        );
+        await this.scheduledSendsRepository.create({
+          messageId: message.id,
+          scheduledFor: request.scheduledFor,
+          timezone: request.timezone ?? null,
+          jobId,
+        });
+      } else {
+        await this.sendQueueService.enqueueSend(message.id);
+      }
 
       results.push({
         customerId,

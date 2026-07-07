@@ -35,6 +35,8 @@ export interface ComposeSendRequest {
   fallbackValues?: Record<string, string>;
   trackingEnabled?: boolean;
   overrideSuppression?: boolean;
+  scheduledFor?: string;
+  timezone?: string;
 }
 
 export interface ComposeRecipientResult {

@@ -18,6 +18,7 @@ import { TrackingEventsRepository } from './tracking-events.repository';
 import { InboundRepository } from './inbound.repository';
 import { SuppressionsRepository } from './suppressions.repository';
 import { AuditLogsRepository } from './audit-logs.repository';
+import { ScheduledSendsRepository } from './scheduled-sends.repository';
 
 @Global()
 @Module({
@@ -47,6 +48,7 @@ import { AuditLogsRepository } from './audit-logs.repository';
     InboundRepository,
     SuppressionsRepository,
     AuditLogsRepository,
+    ScheduledSendsRepository,
   ],
   exports: [
     PG_POOL,
@@ -65,6 +67,7 @@ import { AuditLogsRepository } from './audit-logs.repository';
     InboundRepository,
     SuppressionsRepository,
     AuditLogsRepository,
+    ScheduledSendsRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {
