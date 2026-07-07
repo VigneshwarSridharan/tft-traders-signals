@@ -14,4 +14,7 @@ export * from "./template-status";
 export * from "./template";
 export * from "./email-message";
 export * from "./bounce-class";
+export * from "./message-bounce-type";
+export * from "./tracking-event";
+export * from "./sent-mail";
 export * from "./suppression";

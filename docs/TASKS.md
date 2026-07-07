@@ -141,7 +141,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
   `bounced (hard)` status and a suppression entry within one poll cycle;
   re-sending to that address is blocked in compose.
 
-### ⬜ Task 11 — Sent-mail dashboard (message list + detail) (L)
+### ✅ Task 11 — Sent-mail dashboard (message list + detail) (L)
 **Depends on:** 9, 10
 - List view per FR-6.1: all columns, quick filters (status, account, template,
   date range, tag), text search (recipient/subject), pagination, saved filters.

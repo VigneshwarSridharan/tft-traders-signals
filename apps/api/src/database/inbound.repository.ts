@@ -89,6 +89,14 @@ export class InboundRepository {
     return rows[0];
   }
 
+  async findBounceByMessageId(messageId: string): Promise<BounceRow | null> {
+    const { rows } = await this.pool.query<BounceRow>(
+      `SELECT * FROM bounces WHERE message_id = $1`,
+      [messageId],
+    );
+    return rows[0] ?? null;
+  }
+
   /** Count of distinct soft-bounced messages for an email address within the trailing window. */
   async countRecentSoftBounces(
     email: string,

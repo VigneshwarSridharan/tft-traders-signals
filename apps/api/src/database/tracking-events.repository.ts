@@ -56,6 +56,24 @@ export class TrackingEventsRepository {
     return rows[0];
   }
 
+  async listForMessage(
+    messageId: string,
+    includeBotEvents: boolean,
+  ): Promise<TrackingEventRow[]> {
+    const conditions = ['message_id = $1'];
+    const params: unknown[] = [messageId];
+    if (!includeBotEvents) {
+      conditions.push('is_bot = false');
+    }
+    const { rows } = await this.pool.query<TrackingEventRow>(
+      `SELECT * FROM tracking_events
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY occurred_at ASC`,
+      params,
+    );
+    return rows;
+  }
+
   /** Distinct links clicked on this message within `windowMs` before `before` — feeds the "all links clicked instantly" bot heuristic. */
   async countRecentDistinctLinkClicks(
     messageId: string,
