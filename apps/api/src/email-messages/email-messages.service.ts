@@ -22,6 +22,7 @@ import { CustomFieldDefsRepository } from '../database/custom-field-defs.reposit
 import { CustomersRepository } from '../database/customers.repository';
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { ScheduledSendsRepository } from '../database/scheduled-sends.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { TemplatesRepository } from '../database/templates.repository';
 import { EmailSenderService } from '../send/email-sender.service';
@@ -62,6 +63,7 @@ export class EmailMessagesService {
   constructor(
     private readonly emailMessagesRepository: EmailMessagesRepository,
     private readonly emailLinksRepository: EmailLinksRepository,
+    private readonly scheduledSendsRepository: ScheduledSendsRepository,
     private readonly senderAccountsRepository: SenderAccountsRepository,
     private readonly customersRepository: CustomersRepository,
     private readonly customFieldDefsRepository: CustomFieldDefsRepository,
@@ -147,6 +149,10 @@ export class EmailMessagesService {
 
     const canOverrideSuppression =
       Boolean(request.overrideSuppression) && userRole === 'admin';
+
+    const scheduledForDate = request.scheduledFor
+      ? new Date(request.scheduledFor)
+      : null;
 
     const uniqueCustomerIds = [...new Set(request.customerIds)];
     const customersById = new Map(
@@ -270,8 +276,8 @@ export class EmailMessagesService {
           this.configService.get('SEND_FROM_DOMAIN', { infer: true }),
         ),
         trackingEnabled,
-        status: 'queued',
-        queuedAt: new Date(),
+        status: scheduledForDate ? 'scheduled' : 'queued',
+        queuedAt: scheduledForDate ? null : new Date(),
       });
 
       for (const link of linksToPersist) {
@@ -294,7 +300,20 @@ export class EmailMessagesService {
         });
       }
 
-      await this.sendQueueService.enqueueSend(message.id);
+      if (scheduledForDate) {
+        const jobId = await this.sendQueueService.enqueueScheduledSend(
+          message.id,
+          scheduledForDate,
+        );
+        await this.scheduledSendsRepository.create({
+          messageId: message.id,
+          scheduledFor: scheduledForDate,
+          timezone: request.timezone ?? null,
+          jobId,
+        });
+      } else {
+        await this.sendQueueService.enqueueSend(message.id);
+      }
 
       results.push({
         customerId,

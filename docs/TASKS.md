@@ -151,7 +151,7 @@ dependencies, scope, and acceptance criteria. Sizes: **S** (≤ ½ day),
 - **Accept:** answer "did customer X open the quote I sent Tuesday?" in under
   10 seconds using filters; timeline matches raw events.
 
-### ⬜ Task 12 — Scheduled sending (M)
+### ✅ Task 12 — Scheduled sending (M)
 **Depends on:** 8
 - Schedule at compose (date/time/timezone) → `scheduled` status + BullMQ
   delayed job; scheduled queue screen with edit/cancel before dispatch.

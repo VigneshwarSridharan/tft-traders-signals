@@ -156,6 +156,17 @@ describe('EmailSenderService', () => {
     expect(emailMessagesRepository.markSending).not.toHaveBeenCalled();
   });
 
+  it('drops the job without sending when the scheduled send was cancelled', async () => {
+    emailMessagesRepository.findById.mockResolvedValue(
+      buildMessageRow({ status: 'cancelled' }),
+    );
+
+    await service.processSendJob(buildJob() as never, 'token-1');
+
+    expect(sendMail).not.toHaveBeenCalled();
+    expect(emailMessagesRepository.markSending).not.toHaveBeenCalled();
+  });
+
   it('delays the job with DelayedError when the daily quota is exceeded', async () => {
     senderAccountsRepository.findById.mockResolvedValue(
       buildSenderAccountRow({ daily_quota: 5 }),

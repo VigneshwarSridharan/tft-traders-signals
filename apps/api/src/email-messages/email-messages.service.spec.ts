@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { EmailMessagesService } from './email-messages.service';
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { ScheduledSendsRepository } from '../database/scheduled-sends.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
@@ -98,6 +99,7 @@ describe('EmailMessagesService', () => {
   let service: EmailMessagesService;
   let emailMessagesRepository: jest.Mocked<EmailMessagesRepository>;
   let emailLinksRepository: jest.Mocked<EmailLinksRepository>;
+  let scheduledSendsRepository: jest.Mocked<ScheduledSendsRepository>;
   let senderAccountsRepository: jest.Mocked<SenderAccountsRepository>;
   let customersRepository: jest.Mocked<CustomersRepository>;
   let customFieldDefsRepository: jest.Mocked<CustomFieldDefsRepository>;
@@ -117,6 +119,10 @@ describe('EmailMessagesService', () => {
     emailLinksRepository = {
       create: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<EmailLinksRepository>;
+
+    scheduledSendsRepository = {
+      create: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<ScheduledSendsRepository>;
 
     senderAccountsRepository = {
       findById: jest.fn().mockResolvedValue(buildSenderAccountRow()),
@@ -140,6 +146,7 @@ describe('EmailMessagesService', () => {
 
     sendQueueService = {
       enqueueSend: jest.fn().mockResolvedValue(undefined),
+      enqueueScheduledSend: jest.fn().mockResolvedValue('job-1'),
     } as unknown as jest.Mocked<SendQueueService>;
 
     configService = {
@@ -159,6 +166,7 @@ describe('EmailMessagesService', () => {
     service = new EmailMessagesService(
       emailMessagesRepository,
       emailLinksRepository,
+      scheduledSendsRepository,
       senderAccountsRepository,
       customersRepository,
       customFieldDefsRepository,
@@ -415,6 +423,45 @@ describe('EmailMessagesService', () => {
         'admin',
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  describe('scheduled sends', () => {
+    it('creates a scheduled message and a delayed job instead of sending immediately', async () => {
+      emailMessagesRepository.create.mockResolvedValue(
+        buildMessageRow({ status: 'scheduled', queued_at: null }),
+      );
+      const scheduledFor = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+      const response = await service.compose(
+        {
+          senderAccountId: 'sender-1',
+          customerIds: ['customer-1'],
+          subject: 'Hi',
+          bodyHtml: '<p>Hi</p>',
+          scheduledFor,
+          timezone: 'Asia/Kolkata',
+        },
+        [],
+        'user-1',
+        'admin',
+      );
+
+      expect(response.results[0].ok).toBe(true);
+      expect(emailMessagesRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 'scheduled', queuedAt: null }),
+      );
+      expect(sendQueueService.enqueueSend).not.toHaveBeenCalled();
+      expect(sendQueueService.enqueueScheduledSend).toHaveBeenCalledWith(
+        'message-1',
+        new Date(scheduledFor),
+      );
+      expect(scheduledSendsRepository.create).toHaveBeenCalledWith({
+        messageId: 'message-1',
+        scheduledFor: new Date(scheduledFor),
+        timezone: 'Asia/Kolkata',
+        jobId: 'job-1',
+      });
+    });
   });
 
   describe('testSend', () => {

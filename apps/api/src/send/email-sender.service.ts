@@ -40,6 +40,10 @@ export class EmailSenderService {
       // Already sent by a previous attempt (e.g. a stalled job re-run) — no-op.
       return;
     }
+    if (message.status === 'cancelled') {
+      // Its scheduled send was cancelled before dispatch.
+      return;
+    }
 
     const senderAccount = await this.senderAccountsRepository.findById(
       message.sender_account_id,

@@ -13,6 +13,7 @@ export * from "./customer";
 export * from "./template-status";
 export * from "./template";
 export * from "./email-message";
+export * from "./scheduled-send";
 export * from "./bounce-class";
 export * from "./message-bounce-type";
 export * from "./tracking-event";

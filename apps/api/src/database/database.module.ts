@@ -13,6 +13,7 @@ import { TagsRepository } from './tags.repository';
 import { TemplateCategoriesRepository } from './template-categories.repository';
 import { TemplatesRepository } from './templates.repository';
 import { EmailMessagesRepository } from './email-messages.repository';
+import { ScheduledSendsRepository } from './scheduled-sends.repository';
 import { EmailLinksRepository } from './email-links.repository';
 import { TrackingEventsRepository } from './tracking-events.repository';
 import { InboundRepository } from './inbound.repository';
@@ -42,6 +43,7 @@ import { AuditLogsRepository } from './audit-logs.repository';
     TemplateCategoriesRepository,
     TemplatesRepository,
     EmailMessagesRepository,
+    ScheduledSendsRepository,
     EmailLinksRepository,
     TrackingEventsRepository,
     InboundRepository,
@@ -60,6 +62,7 @@ import { AuditLogsRepository } from './audit-logs.repository';
     TemplateCategoriesRepository,
     TemplatesRepository,
     EmailMessagesRepository,
+    ScheduledSendsRepository,
     EmailLinksRepository,
     TrackingEventsRepository,
     InboundRepository,

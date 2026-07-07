@@ -45,7 +45,7 @@ export interface CreateEmailMessageInput {
   messageIdHeader: string;
   trackingEnabled: boolean;
   status: MessageStatus;
-  queuedAt: Date;
+  queuedAt: Date | null;
 }
 
 export interface CreateAttachmentInput {
@@ -239,6 +239,13 @@ export class EmailMessagesRepository {
   async markQueued(id: string): Promise<void> {
     await this.pool.query(
       `UPDATE email_messages SET status = 'queued' WHERE id = $1`,
+      [id],
+    );
+  }
+
+  async markCancelled(id: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE email_messages SET status = 'cancelled' WHERE id = $1 AND status = 'scheduled'`,
       [id],
     );
   }

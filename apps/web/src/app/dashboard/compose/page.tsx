@@ -46,6 +46,8 @@ interface ComposeDraft {
   trackingEnabled: boolean;
   overrideSuppression: boolean;
   fallbackValues: Record<string, string>;
+  sendMode: "now" | "schedule";
+  scheduledFor: string;
 }
 
 const EMPTY_DRAFT: ComposeDraft = {
@@ -60,6 +62,8 @@ const EMPTY_DRAFT: ComposeDraft = {
   trackingEnabled: true,
   overrideSuppression: false,
   fallbackValues: {},
+  sendMode: "now",
+  scheduledFor: "",
 };
 
 function formatBytes(bytes: number): string {
@@ -107,6 +111,9 @@ export default function ComposePage() {
     {},
   );
 
+  const [sendMode, setSendMode] = useState<"now" | "schedule">("now");
+  const [scheduledFor, setScheduledFor] = useState("");
+
   const [attachments, setAttachments] = useState<File[]>([]);
 
   const [previewCustomerId, setPreviewCustomerId] = useState("");
@@ -123,6 +130,7 @@ export default function ComposePage() {
   const [sendResult, setSendResult] = useState<ComposeSendResponse | null>(
     null,
   );
+  const [sendResultWasScheduled, setSendResultWasScheduled] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
   const loadReferenceData = useCallback(async () => {
@@ -172,6 +180,8 @@ export default function ComposePage() {
         setTrackingEnabled(draft.trackingEnabled);
         setOverrideSuppression(draft.overrideSuppression);
         setFallbackValues(draft.fallbackValues);
+        setSendMode(draft.sendMode ?? "now");
+        setScheduledFor(draft.scheduledFor ?? "");
       }
     } catch {
       // Ignore a corrupted draft.
@@ -211,6 +221,8 @@ export default function ComposePage() {
       trackingEnabled,
       overrideSuppression,
       fallbackValues,
+      sendMode,
+      scheduledFor,
     };
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
   }, [
@@ -226,6 +238,8 @@ export default function ComposePage() {
     trackingEnabled,
     overrideSuppression,
     fallbackValues,
+    sendMode,
+    scheduledFor,
   ]);
 
   useEffect(() => {
@@ -456,6 +470,8 @@ export default function ComposePage() {
     setTrackingEnabled(EMPTY_DRAFT.trackingEnabled);
     setOverrideSuppression(EMPTY_DRAFT.overrideSuppression);
     setFallbackValues(EMPTY_DRAFT.fallbackValues);
+    setSendMode(EMPTY_DRAFT.sendMode);
+    setScheduledFor(EMPTY_DRAFT.scheduledFor);
     setAttachments([]);
     setPreview(null);
     setPreviewCustomerId("");
@@ -481,6 +497,19 @@ export default function ComposePage() {
       setSendError("Attachments exceed the 25 MB total limit");
       return;
     }
+    let scheduledForIso: string | undefined;
+    if (sendMode === "schedule") {
+      if (!scheduledFor) {
+        setSendError("Choose a date and time to schedule for");
+        return;
+      }
+      const parsed = new Date(scheduledFor);
+      if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= Date.now()) {
+        setSendError("Scheduled time must be in the future");
+        return;
+      }
+      scheduledForIso = parsed.toISOString();
+    }
 
     setSending(true);
     try {
@@ -492,6 +521,10 @@ export default function ComposePage() {
         trackingEnabled,
         overrideSuppression:
           user?.role === "admin" ? overrideSuppression : undefined,
+        scheduledFor: scheduledForIso,
+        timezone: scheduledForIso
+          ? Intl.DateTimeFormat().resolvedOptions().timeZone
+          : undefined,
         ...buildContentPayload(),
       };
       const formData = new FormData();
@@ -504,6 +537,7 @@ export default function ComposePage() {
         { method: "POST", body: formData },
       );
       setSendResult(result);
+      setSendResultWasScheduled(Boolean(scheduledForIso));
 
       const failedIds = new Set(
         result.results.filter((r) => !r.ok).map((r) => r.customerId),
@@ -893,6 +927,45 @@ export default function ComposePage() {
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          7. Send timing
+        </h2>
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="radio"
+              name="sendMode"
+              checked={sendMode === "now"}
+              onChange={() => setSendMode("now")}
+            />
+            Send now
+          </label>
+          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="radio"
+              name="sendMode"
+              checked={sendMode === "schedule"}
+              onChange={() => setSendMode("schedule")}
+            />
+            Schedule for later
+          </label>
+        </div>
+        {sendMode === "schedule" && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              type="datetime-local"
+              value={scheduledFor}
+              onChange={(e) => setScheduledFor(e.target.value)}
+              className={`${INPUT_CLASS} w-64`}
+            />
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              {Intl.DateTimeFormat().resolvedOptions().timeZone}
+            </span>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -900,7 +973,13 @@ export default function ComposePage() {
             disabled={sending}
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
           >
-            {sending ? "Sending…" : `Send to ${selectedCustomers.size} recipient(s)`}
+            {sending
+              ? sendMode === "schedule"
+                ? "Scheduling…"
+                : "Sending…"
+              : sendMode === "schedule"
+                ? `Schedule for ${selectedCustomers.size} recipient(s)`
+                : `Send to ${selectedCustomers.size} recipient(s)`}
           </button>
           <button
             type="button"
@@ -951,7 +1030,9 @@ export default function ComposePage() {
                 }
               >
                 {result.ok
-                  ? `Queued for ${result.customerId}`
+                  ? sendResultWasScheduled
+                    ? `Scheduled for ${result.customerId}`
+                    : `Queued for ${result.customerId}`
                   : `${result.customerId}: ${result.error}`}
               </li>
             ))}

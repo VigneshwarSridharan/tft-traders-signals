@@ -35,6 +35,10 @@ export interface ComposeSendRequest {
   fallbackValues?: Record<string, string>;
   trackingEnabled?: boolean;
   overrideSuppression?: boolean;
+  /** ISO 8601 timestamp; when set, the message is scheduled instead of sent immediately. */
+  scheduledFor?: string;
+  /** IANA timezone name, for display only (send time is always driven by scheduledFor). */
+  timezone?: string;
 }
 
 export interface ComposeRecipientResult {

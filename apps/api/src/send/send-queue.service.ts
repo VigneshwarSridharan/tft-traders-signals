@@ -35,6 +35,38 @@ export class SendQueueService implements OnModuleDestroy {
     );
   }
 
+  /** Delayed jobs live in Redis, so a scheduled send survives a worker restart. */
+  async enqueueScheduledSend(
+    messageId: string,
+    scheduledFor: Date,
+  ): Promise<string> {
+    const delay = Math.max(0, scheduledFor.getTime() - Date.now());
+    const job = await this.queue.add(
+      'send',
+      { messageId },
+      {
+        delay,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 30_000 },
+        removeOnComplete: 1000,
+        removeOnFail: 5000,
+      },
+    );
+    return String(job.id);
+  }
+
+  /** Removes a still-pending (waiting/delayed) job; a no-op if it already started processing. */
+  async cancelQueuedJob(jobId: string): Promise<void> {
+    const job = await this.queue.getJob(jobId);
+    if (!job) {
+      return;
+    }
+    const state = await job.getState();
+    if (state === 'delayed' || state === 'waiting') {
+      await job.remove();
+    }
+  }
+
   async onModuleDestroy(): Promise<void> {
     await this.queue.close();
     // bullmq's underlying socket finishes tearing down a tick after close()
