@@ -18,3 +18,4 @@ export * from "./message-bounce-type";
 export * from "./tracking-event";
 export * from "./sent-mail";
 export * from "./suppression";
+export * from "./scheduled-send";

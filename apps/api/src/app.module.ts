@@ -18,6 +18,7 @@ import { TrackingModule } from './tracking/tracking.module';
 import { InboundModule } from './inbound/inbound.module';
 import { SuppressionsModule } from './suppressions/suppressions.module';
 import { SentMailModule } from './sent-mail/sent-mail.module';
+import { ScheduledSendsModule } from './scheduled-sends/scheduled-sends.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { SentMailModule } from './sent-mail/sent-mail.module';
     InboundModule,
     SuppressionsModule,
     SentMailModule,
+    ScheduledSendsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

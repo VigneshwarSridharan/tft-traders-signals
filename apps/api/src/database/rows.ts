@@ -259,3 +259,14 @@ export interface SuppressionRow {
   created_at: Date;
   updated_at: Date;
 }
+
+export interface ScheduledSendRow {
+  id: string;
+  message_id: string;
+  scheduled_for: Date;
+  timezone: string | null;
+  job_id: string | null;
+  cancelled_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}

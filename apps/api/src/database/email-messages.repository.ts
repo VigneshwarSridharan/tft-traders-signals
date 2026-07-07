@@ -45,7 +45,7 @@ export interface CreateEmailMessageInput {
   messageIdHeader: string;
   trackingEnabled: boolean;
   status: MessageStatus;
-  queuedAt: Date;
+  queuedAt: Date | null;
 }
 
 export interface CreateAttachmentInput {
@@ -211,9 +211,20 @@ export class EmailMessagesRepository {
 
   async markSending(id: string): Promise<void> {
     await this.pool.query(
-      `UPDATE email_messages SET status = 'sending' WHERE id = $1`,
+      `UPDATE email_messages
+       SET status = 'sending', queued_at = COALESCE(queued_at, now())
+       WHERE id = $1`,
       [id],
     );
+  }
+
+  /** Cancels a scheduled message; no-ops if it's already left the `scheduled` state. */
+  async markCancelled(id: string): Promise<boolean> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE email_messages SET status = 'cancelled' WHERE id = $1 AND status = 'scheduled'`,
+      [id],
+    );
+    return (rowCount ?? 0) > 0;
   }
 
   async markSent(
