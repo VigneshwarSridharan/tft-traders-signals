@@ -19,3 +19,4 @@ export * from "./tracking-event";
 export * from "./sent-mail";
 export * from "./suppression";
 export * from "./scheduled-send";
+export * from "./analytics";

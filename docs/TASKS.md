@@ -165,7 +165,7 @@ platform and sees opens, clicks, and bounces per message.
 
 ## Phase 2 — Analytics & engagement
 
-### ⬜ Task 13 — Stats rollup & analytics API (M)
+### ✅ Task 13 — Stats rollup & analytics API (M)
 **Depends on:** 11
 - Incremental `daily_stats` rollup job (by day × account × template);
   analytics endpoints: KPI set (sent, delivered, rates, opens, clicks, CTR,

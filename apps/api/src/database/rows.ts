@@ -270,3 +270,22 @@ export interface ScheduledSendRow {
   created_at: Date;
   updated_at: Date;
 }
+
+export interface DailyStatsRow {
+  id: string;
+  day: Date;
+  sender_account_id: string | null;
+  template_id: string | null;
+  sent: number;
+  delivered: number;
+  bounced_hard: number;
+  bounced_soft: number;
+  opens_total: number;
+  opens_unique: number;
+  clicks_total: number;
+  clicks_unique: number;
+  replies: number;
+  unsubscribes: number;
+  created_at: Date;
+  updated_at: Date;
+}
