@@ -191,7 +191,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** replying to a tracked email from a personal account marks it
   Replied within one poll cycle.
 
-### ⬜ Task 16 — Real-time dashboard updates (M)
+### ✅ Task 16 — Real-time dashboard updates (M)
 **Depends on:** 11
 - SSE stream of tracking events (auth-scoped); sent-list and detail views
   update live; toast on first-open/click/reply for the viewing user.

@@ -22,6 +22,9 @@ export interface CreateTrackingEventInput {
   metadata: Record<string, unknown>;
 }
 
+/** Postgres NOTIFY channel used to push real-time tracking events to the api process (see RealtimeModule). */
+export const TRACKING_EVENTS_CHANNEL = 'tracking_events';
+
 @Injectable()
 export class TrackingEventsRepository {
   constructor(@Inject(PG_POOL) private readonly pool: Pool) {}
@@ -53,7 +56,24 @@ export class TrackingEventsRepository {
         JSON.stringify(input.metadata),
       ],
     );
-    return rows[0];
+    const event = rows[0];
+
+    if (!input.isBot) {
+      // Postgres defers NOTIFY delivery until COMMIT, so a rolled-back
+      // transaction never reaches realtime subscribers — no separate
+      // outbox/rollback handling needed.
+      await executor.query(`SELECT pg_notify($1, $2)`, [
+        TRACKING_EVENTS_CHANNEL,
+        JSON.stringify({
+          eventId: event.id,
+          messageId: event.message_id,
+          eventType: event.event_type,
+          occurredAt: event.occurred_at.toISOString(),
+        }),
+      ]);
+    }
+
+    return event;
   }
 
   async listForMessage(
