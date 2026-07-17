@@ -6,6 +6,7 @@ import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { InboundRepository } from '../database/inbound.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { SuppressionsRepository } from '../database/suppressions.repository';
+import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
 import type { EnvConfig } from '../config/env.validation';
 
@@ -61,6 +62,42 @@ Message-ID: <reply-1@acme.com>
 Content-Type: text/plain
 
 Thanks!
+`,
+);
+
+const REPLY_VIA_IN_REPLY_TO_SOURCE = Buffer.from(
+  `From: jane@acme.com
+To: sales@company.com
+Subject: Re: Your quotation
+Message-ID: <reply-2@acme.com>
+In-Reply-To: <original-msg-uuid@tft-traders-signals.local>
+Content-Type: text/plain
+
+Sounds good, let's proceed.
+`,
+);
+
+const REPLY_VIA_REFERENCES_SOURCE = Buffer.from(
+  `From: jane@acme.com
+To: sales@company.com
+Subject: Re: Your quotation
+Message-ID: <reply-3@acme.com>
+References: <some-other-thread@acme.com> <original-msg-uuid@tft-traders-signals.local>
+Content-Type: text/plain
+
+Following up on this thread.
+`,
+);
+
+const UNMATCHED_REPLY_SOURCE = Buffer.from(
+  `From: jane@acme.com
+To: sales@company.com
+Subject: Re: Something else
+Message-ID: <reply-4@acme.com>
+In-Reply-To: <unknown-original@tft-traders-signals.local>
+Content-Type: text/plain
+
+Following up.
 `,
 );
 
@@ -151,6 +188,7 @@ describe('InboundSyncService.processMessage', () => {
   let inboundRepository: jest.Mocked<InboundRepository>;
   let emailMessagesRepository: jest.Mocked<EmailMessagesRepository>;
   let suppressionsRepository: jest.Mocked<SuppressionsRepository>;
+  let trackingEventsRepository: jest.Mocked<TrackingEventsRepository>;
   let configService: ConfigService<EnvConfig, true>;
   let service: InboundSyncService;
 
@@ -176,11 +214,16 @@ describe('InboundSyncService.processMessage', () => {
     emailMessagesRepository = {
       findByMessageIdHeader: jest.fn().mockResolvedValue(buildEmailMessage()),
       markBounced: jest.fn().mockResolvedValue(undefined),
+      markReplied: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<EmailMessagesRepository>;
 
     suppressionsRepository = {
       upsert: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<SuppressionsRepository>;
+
+    trackingEventsRepository = {
+      insert: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<TrackingEventsRepository>;
 
     configService = {
       get: jest.fn((key: string) => {
@@ -196,6 +239,7 @@ describe('InboundSyncService.processMessage', () => {
       inboundRepository,
       emailMessagesRepository,
       suppressionsRepository,
+      trackingEventsRepository,
       configService,
     );
   });
@@ -320,5 +364,106 @@ describe('InboundSyncService.processMessage', () => {
     );
     expect(emailMessagesRepository.markBounced).not.toHaveBeenCalled();
     expect(suppressionsRepository.upsert).not.toHaveBeenCalled();
+  });
+
+  it('correlates a reply via In-Reply-To and marks the message replied', async () => {
+    const message = buildFetchMessage(REPLY_VIA_IN_REPLY_TO_SOURCE, {
+      uid: 13,
+    });
+
+    await service.processMessage(buildSenderAccount(), message);
+
+    expect(inboundRepository.createInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classification: 'reply',
+        matchedMessageId: 'message-1',
+        inReplyTo: '<original-msg-uuid@tft-traders-signals.local>',
+      }),
+      client,
+    );
+    expect(trackingEventsRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: 'message-1', eventType: 'reply' }),
+      client,
+    );
+    expect(emailMessagesRepository.markReplied).toHaveBeenCalledWith(
+      'message-1',
+      expect.any(Date),
+      client,
+    );
+    expect(emailMessagesRepository.markBounced).not.toHaveBeenCalled();
+    expect(suppressionsRepository.upsert).not.toHaveBeenCalled();
+  });
+
+  it('falls back to References when In-Reply-To is absent', async () => {
+    const message = buildFetchMessage(REPLY_VIA_REFERENCES_SOURCE, {
+      uid: 14,
+    });
+
+    await service.processMessage(buildSenderAccount(), message);
+
+    expect(inboundRepository.createInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classification: 'reply',
+        matchedMessageId: 'message-1',
+      }),
+      client,
+    );
+    expect(trackingEventsRepository.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: 'message-1', eventType: 'reply' }),
+      client,
+    );
+    expect(emailMessagesRepository.markReplied).toHaveBeenCalled();
+  });
+
+  it('classifies an unmatched reply-shaped message as other', async () => {
+    emailMessagesRepository.findByMessageIdHeader.mockResolvedValue(null);
+    const message = buildFetchMessage(UNMATCHED_REPLY_SOURCE, { uid: 15 });
+
+    await service.processMessage(buildSenderAccount(), message);
+
+    expect(inboundRepository.createInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        classification: 'other',
+        matchedMessageId: null,
+      }),
+      client,
+    );
+    expect(trackingEventsRepository.insert).not.toHaveBeenCalled();
+    expect(emailMessagesRepository.markReplied).not.toHaveBeenCalled();
+  });
+
+  it('does not double-count a second reply on an already-replied thread', async () => {
+    emailMessagesRepository.findByMessageIdHeader.mockResolvedValue(
+      buildEmailMessage({ replied_at: new Date('2026-07-10T00:00:00Z') }),
+    );
+    const message = buildFetchMessage(REPLY_VIA_IN_REPLY_TO_SOURCE, {
+      uid: 16,
+    });
+
+    await service.processMessage(buildSenderAccount(), message);
+
+    // Still recorded in the inbound audit trail as a reply...
+    expect(inboundRepository.createInboundMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ classification: 'reply' }),
+      client,
+    );
+    // ...but no second tracking event or replied_at overwrite.
+    expect(trackingEventsRepository.insert).not.toHaveBeenCalled();
+    expect(emailMessagesRepository.markReplied).not.toHaveBeenCalled();
+  });
+
+  it('a DSN message never runs reply correlation even if reply-shaped headers are present', async () => {
+    const message = buildFetchMessage(
+      buildDsnSource({
+        status: '5.1.1',
+        action: 'failed',
+        originalMessageId: '<original-msg-uuid@tft-traders-signals.local>',
+      }),
+    );
+
+    await service.processMessage(buildSenderAccount(), message);
+
+    expect(trackingEventsRepository.insert).not.toHaveBeenCalled();
+    expect(emailMessagesRepository.markReplied).not.toHaveBeenCalled();
   });
 });
