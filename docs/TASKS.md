@@ -174,7 +174,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** API numbers reconcile exactly with raw-event queries on a test
   dataset; year query returns <200 ms using rollups.
 
-### ⬜ Task 14 — Analytics dashboard UI (L)
+### ✅ Task 14 — Analytics dashboard UI (L)
 **Depends on:** 13
 - KPI tiles with period selector + deltas; activity time-series charts;
   leaderboards (top templates, most-opened emails, most-clicked links,
