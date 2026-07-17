@@ -7,6 +7,7 @@ import type {
   DailyStatsAggregate,
   DailyStatsRepository,
 } from '../database/daily-stats.repository';
+import type { AnalyticsLeaderboardsRepository } from '../database/analytics-leaderboards.repository';
 
 function buildAggregate(
   overrides: Partial<DailyStatsAggregate> = {},
@@ -137,7 +138,12 @@ describe('AnalyticsService.getKpis', () => {
       sumRange,
     } as unknown as jest.Mocked<DailyStatsRepository>;
 
-    const service = new AnalyticsService(dailyStatsRepository);
+    const leaderboardsRepository =
+      {} as jest.Mocked<AnalyticsLeaderboardsRepository>;
+    const service = new AnalyticsService(
+      dailyStatsRepository,
+      leaderboardsRepository,
+    );
 
     const response = await service.getKpis({
       dateFrom: new Date('2026-07-10T00:00:00Z'),

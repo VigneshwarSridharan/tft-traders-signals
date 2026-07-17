@@ -69,3 +69,93 @@ export interface AnalyticsTimeseriesPoint {
 }
 
 export type AnalyticsTimeseriesResponse = AnalyticsTimeseriesPoint[];
+
+export interface AnalyticsLeaderboardQuery {
+  dateFrom?: string;
+  dateTo?: string;
+  senderAccountId?: string;
+  templateId?: string;
+  limit?: number;
+}
+
+export interface AnalyticsHeatmapQuery {
+  dateFrom?: string;
+  dateTo?: string;
+  senderAccountId?: string;
+  templateId?: string;
+}
+
+export interface TemplateLeaderboardEntry {
+  templateId: string;
+  templateName: string;
+  categoryName: string;
+  sent: number;
+  delivered: number;
+  opensUnique: number;
+  clicksUnique: number;
+  openRate: number;
+  ctr: number;
+}
+
+export type TemplateLeaderboardResponse = TemplateLeaderboardEntry[];
+
+export interface AccountLeaderboardEntry {
+  senderAccountId: string;
+  senderAccountEmail: string;
+  senderAccountDisplayName: string | null;
+  sent: number;
+  delivered: number;
+  opensUnique: number;
+  clicksUnique: number;
+  openRate: number;
+  ctr: number;
+}
+
+export type AccountLeaderboardResponse = AccountLeaderboardEntry[];
+
+export interface TopEmailEntry {
+  messageId: string;
+  subject: string | null;
+  toEmail: string;
+  toName: string | null;
+  sentAt: string | null;
+  templateName: string | null;
+  senderAccountEmail: string;
+  senderAccountDisplayName: string | null;
+  openCount: number;
+  clickCount: number;
+}
+
+export type TopEmailsResponse = TopEmailEntry[];
+
+export interface TopLinkEntry {
+  originalUrl: string;
+  linkLabel: string | null;
+  totalClicks: number;
+  timesSent: number;
+}
+
+export type TopLinksResponse = TopLinkEntry[];
+
+export interface TopCustomerEntry {
+  customerId: string;
+  name: string;
+  email: string;
+  company: string | null;
+  sent: number;
+  opensTotal: number;
+  clicksTotal: number;
+  messagesOpened: number;
+  messagesClicked: number;
+}
+
+export type TopCustomersResponse = TopCustomerEntry[];
+
+/** `weekday` follows Postgres EXTRACT(DOW): 0 = Sunday .. 6 = Saturday. `hour` is 0-23 UTC. */
+export interface SendTimeHeatmapPoint {
+  weekday: number;
+  hour: number;
+  opens: number;
+}
+
+export type SendTimeHeatmapResponse = SendTimeHeatmapPoint[];
