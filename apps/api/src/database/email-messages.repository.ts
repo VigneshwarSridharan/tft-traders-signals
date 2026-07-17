@@ -279,6 +279,18 @@ export class EmailMessagesRepository {
     );
   }
 
+  /** Sets `replied_at` on first reply only — a later reply in the same thread never overwrites the original timestamp. */
+  async markReplied(
+    id: string,
+    repliedAt: Date,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `UPDATE email_messages SET replied_at = COALESCE(replied_at, $2) WHERE id = $1`,
+      [id, repliedAt],
+    );
+  }
+
   /** `sent` messages older than the delivery-heuristic window with no bounce are assumed delivered. */
   async markDeliveredAfterHeuristic(hours: number): Promise<string[]> {
     const { rows } = await this.pool.query<{ id: string }>(

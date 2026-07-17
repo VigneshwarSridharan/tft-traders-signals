@@ -8,6 +8,10 @@ export interface DsnParseResult {
   diagnostic: string | null;
   finalRecipient: string | null;
   originalMessageId: string | null;
+  /** `In-Reply-To` header, present on non-DSN mail too — used for reply correlation. */
+  inReplyTo: string | null;
+  /** `References` header ids, oldest first — the reply-correlation fallback when `In-Reply-To` is absent or stale. */
+  references: string[];
 }
 
 const STATUS_RE = /^Status:\s*([245])\.(\d{1,3})\.(\d{1,3})/im;
@@ -35,6 +39,14 @@ function classifyFromAction(action: string | null): BounceClass | null {
  * pulled out of it with simple line-anchored regexes.
  */
 export async function parseDsn(raw: Buffer): Promise<DsnParseResult> {
+  const parsed = await simpleParser(raw);
+  const inReplyTo = parsed.inReplyTo ?? null;
+  const references = Array.isArray(parsed.references)
+    ? parsed.references
+    : parsed.references
+      ? [parsed.references]
+      : [];
+
   const empty: DsnParseResult = {
     isDsn: false,
     bounceClass: null,
@@ -42,9 +54,10 @@ export async function parseDsn(raw: Buffer): Promise<DsnParseResult> {
     diagnostic: null,
     finalRecipient: null,
     originalMessageId: null,
+    inReplyTo,
+    references,
   };
 
-  const parsed = await simpleParser(raw);
   const contentType = parsed.headers.get('content-type') as
     { value?: string; params?: Record<string, string> } | undefined;
   const declaresDeliveryStatusReport =
@@ -98,5 +111,7 @@ export async function parseDsn(raw: Buffer): Promise<DsnParseResult> {
     diagnostic: diagnosticMatch?.[1]?.trim() ?? null,
     finalRecipient: finalRecipientMatch?.[1]?.trim() ?? null,
     originalMessageId,
+    inReplyTo,
+    references,
   };
 }

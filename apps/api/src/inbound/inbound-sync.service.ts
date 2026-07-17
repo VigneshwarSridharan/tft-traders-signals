@@ -11,7 +11,8 @@ import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { InboundRepository } from '../database/inbound.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { SuppressionsRepository } from '../database/suppressions.repository';
-import type { SenderAccountRow } from '../database/rows';
+import { TrackingEventsRepository } from '../database/tracking-events.repository';
+import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
 import { parseDsn } from './dsn-parser.util';
 
 function toErrorMessage(error: unknown): string {
@@ -28,6 +29,7 @@ export class InboundSyncService {
     private readonly inboundRepository: InboundRepository,
     private readonly emailMessagesRepository: EmailMessagesRepository,
     private readonly suppressionsRepository: SuppressionsRepository,
+    private readonly trackingEventsRepository: TrackingEventsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
@@ -120,28 +122,58 @@ export class InboundSyncService {
     }
 
     const dsn = await parseDsn(source);
-    const classification = dsn.isDsn ? 'bounce_dsn' : 'other';
 
     await withTransaction(this.pool, async (client) => {
-      const matchedMessage = dsn.originalMessageId
-        ? await this.emailMessagesRepository.findByMessageIdHeader(
-            dsn.originalMessageId,
+      const bounceMatchedMessage =
+        dsn.isDsn && dsn.originalMessageId
+          ? await this.emailMessagesRepository.findByMessageIdHeader(
+              dsn.originalMessageId,
+              client,
+            )
+          : null;
+
+      // A DSN's own Message-ID never correlates to anything we sent, so reply
+      // correlation is only attempted on non-DSN mail. In-Reply-To is checked
+      // first (the direct parent); References (oldest-first, per RFC 5322 §3.6.4)
+      // is the fallback for clients that omit In-Reply-To.
+      const replyCandidateIds = dsn.isDsn
+        ? []
+        : Array.from(
+            new Set(
+              [dsn.inReplyTo, ...dsn.references].filter((id): id is string =>
+                Boolean(id),
+              ),
+            ),
+          );
+      let replyMatchedMessage: EmailMessageRow | null = null;
+      for (const candidateId of replyCandidateIds) {
+        replyMatchedMessage =
+          await this.emailMessagesRepository.findByMessageIdHeader(
+            candidateId,
             client,
-          )
-        : null;
+          );
+        if (replyMatchedMessage) break;
+      }
+
+      const classification = dsn.isDsn
+        ? 'bounce_dsn'
+        : replyMatchedMessage
+          ? 'reply'
+          : 'other';
 
       const inbound = await this.inboundRepository.createInboundMessage(
         {
           senderAccountId: account.id,
           imapUid: message.uid.toString(),
           messageIdHeader: message.envelope?.messageId ?? null,
-          inReplyTo: message.envelope?.inReplyTo ?? null,
-          referencesHeader: null,
+          inReplyTo: dsn.inReplyTo,
+          referencesHeader: dsn.references.join(' ') || null,
           fromEmail: message.envelope?.from?.[0]?.address ?? null,
           subject: message.envelope?.subject ?? null,
           receivedAt: message.envelope?.date ?? null,
           classification,
-          matchedMessageId: matchedMessage?.id ?? null,
+          matchedMessageId:
+            bounceMatchedMessage?.id ?? replyMatchedMessage?.id ?? null,
           rawHeaders: {
             statusCode: dsn.statusCode,
             diagnostic: dsn.diagnostic,
@@ -156,11 +188,11 @@ export class InboundSyncService {
         return;
       }
 
-      if (dsn.isDsn && dsn.bounceClass && matchedMessage) {
+      if (dsn.isDsn && dsn.bounceClass && bounceMatchedMessage) {
         const bouncedAt = message.envelope?.date ?? new Date();
-        if (matchedMessage.status !== 'bounced') {
+        if (bounceMatchedMessage.status !== 'bounced') {
           await this.emailMessagesRepository.markBounced(
-            matchedMessage.id,
+            bounceMatchedMessage.id,
             dsn.bounceClass,
             bouncedAt,
             client,
@@ -168,7 +200,7 @@ export class InboundSyncService {
         }
         await this.inboundRepository.upsertBounce(
           {
-            messageId: matchedMessage.id,
+            messageId: bounceMatchedMessage.id,
             inboundMessageId: inbound.id,
             bounceClass: dsn.bounceClass,
             statusCode: dsn.statusCode,
@@ -178,8 +210,43 @@ export class InboundSyncService {
           client,
         );
         await this.applySuppressionPolicy(
-          matchedMessage,
+          bounceMatchedMessage,
           dsn.bounceClass,
+          client,
+        );
+      }
+
+      // Only the first reply on a thread emits an event/timestamp — later
+      // replies to the same message still classify as 'reply' in the audit
+      // trail (inbound_messages) but don't inflate the reply-rate metric.
+      if (
+        classification === 'reply' &&
+        replyMatchedMessage &&
+        !replyMatchedMessage.replied_at
+      ) {
+        const repliedAt = message.envelope?.date ?? new Date();
+        await this.trackingEventsRepository.insert(
+          {
+            messageId: replyMatchedMessage.id,
+            linkId: null,
+            eventType: 'reply',
+            occurredAt: repliedAt,
+            ip: null,
+            userAgent: null,
+            deviceType: null,
+            os: null,
+            browser: null,
+            geoCountry: null,
+            geoCity: null,
+            isBot: false,
+            isProxy: false,
+            metadata: { inboundMessageId: inbound.id },
+          },
+          client,
+        );
+        await this.emailMessagesRepository.markReplied(
+          replyMatchedMessage.id,
+          repliedAt,
           client,
         );
       }

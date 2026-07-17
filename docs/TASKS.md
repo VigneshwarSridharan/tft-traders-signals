@@ -183,7 +183,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** all FR-7 views render correctly against seeded data at
   mobile/desktop widths in light and dark mode.
 
-### ⬜ Task 15 — Reply tracking (M)
+### ✅ Task 15 — Reply tracking (M)
 **Depends on:** 10
 - Extend inbound worker: correlate `In-Reply-To`/`References` with sent
   `Message-ID`s → set `replied_at`, emit reply event; replied status in list,

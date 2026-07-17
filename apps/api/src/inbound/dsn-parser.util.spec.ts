@@ -88,7 +88,7 @@ describe('parseDsn', () => {
     expect(result.statusCode).toBe('4.2.2');
   });
 
-  it('is not a DSN for a normal reply email', async () => {
+  it('is not a DSN for a normal reply email, and extracts In-Reply-To for reply correlation', async () => {
     const raw = Buffer.from(
       `From: jane@acme.com
 To: sales@company.com
@@ -103,5 +103,44 @@ Thanks, looks good!
     const result = await parseDsn(raw);
     expect(result.isDsn).toBe(false);
     expect(result.bounceClass).toBeNull();
+    expect(result.inReplyTo).toBe(
+      '<original-msg-uuid@tft-traders-signals.local>',
+    );
+    expect(result.references).toEqual([]);
+  });
+
+  it('extracts multiple References ids, oldest first, when In-Reply-To is absent', async () => {
+    const raw = Buffer.from(
+      `From: jane@acme.com
+To: sales@company.com
+Subject: Re: Your quotation
+Message-ID: <reply-2@acme.com>
+References: <thread-start@acme.com> <original-msg-uuid@tft-traders-signals.local>
+Content-Type: text/plain
+
+Following up.
+`,
+    );
+    const result = await parseDsn(raw);
+    expect(result.isDsn).toBe(false);
+    expect(result.inReplyTo).toBeNull();
+    expect(result.references).toEqual([
+      '<thread-start@acme.com>',
+      '<original-msg-uuid@tft-traders-signals.local>',
+    ]);
+  });
+
+  it('extracts inReplyTo/references as null/empty on a DSN, which has neither header', async () => {
+    const result = await parseDsn(
+      buildDsn({
+        status: '5.1.1',
+        action: 'failed',
+        diagnostic: '550 5.1.1 no such user',
+        finalRecipient: 'nonexistent@gmail.com',
+        originalMessageId: '<original-msg-uuid@tft-traders-signals.local>',
+      }),
+    );
+    expect(result.inReplyTo).toBeNull();
+    expect(result.references).toEqual([]);
   });
 });
