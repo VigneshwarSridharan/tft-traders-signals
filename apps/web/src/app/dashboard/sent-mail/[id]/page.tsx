@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { SentMailDetail, TagSummary } from "@tft/shared";
+import type {
+  RealtimeTrackingEvent,
+  SentMailDetail,
+  TagSummary,
+} from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { useRealtimeEvents } from "@/lib/realtime-context";
 import { StatusBadge } from "../page";
 
 function formatDate(value: string | null): string {
@@ -48,6 +53,17 @@ export default function SentMailDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refetch detail when the bot-events toggle changes
     void loadDetail();
   }, [loadDetail]);
+
+  const handleRealtimeEvent = useCallback(
+    (event: RealtimeTrackingEvent) => {
+      if (event.messageId === messageId) {
+        void loadDetail();
+      }
+    },
+    [messageId, loadDetail],
+  );
+
+  useRealtimeEvents(handleRealtimeEvent);
 
   async function addTag(tagId: string) {
     if (!tagId) return;

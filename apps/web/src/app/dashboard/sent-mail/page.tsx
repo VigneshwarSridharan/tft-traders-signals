@@ -7,11 +7,13 @@ import {
   type ComposeSenderAccountOption,
   type EmailTemplateSummary,
   type MessageStatus,
+  type RealtimeTrackingEvent,
   type SentMailListResponse,
   type SentMailSortField,
   type TagSummary,
 } from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { useRealtimeEvents } from "@/lib/realtime-context";
 
 const INPUT_CLASS =
   "w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:text-zinc-50";
@@ -110,6 +112,27 @@ export default function SentMailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refetch sent mail when filters change
     void loadMessages();
   }, [loadMessages]);
+
+  const handleRealtimeEvent = useCallback((event: RealtimeTrackingEvent) => {
+    setResult((prev) => {
+      if (!prev) return prev;
+      let changed = false;
+      const items = prev.items.map((item) => {
+        if (item.id !== event.messageId) return item;
+        changed = true;
+        return {
+          ...item,
+          status: event.status,
+          openCount: event.openCount,
+          clickCount: event.clickCount,
+          repliedAt: event.repliedAt,
+        };
+      });
+      return changed ? { ...prev, items } : prev;
+    });
+  }, []);
+
+  useRealtimeEvents(handleRealtimeEvent);
 
   const totalPages = useMemo(() => {
     if (!result || result.pageSize === 0) return 1;

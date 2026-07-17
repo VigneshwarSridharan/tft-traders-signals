@@ -4,10 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import type { EnvConfig } from './config/env.validation';
+import { RealtimeEventsService } from './realtime/realtime-events.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService<EnvConfig, true>);
+  await app.get(RealtimeEventsService).start();
 
   // Behind the Caddy reverse proxy in every deployment — needed so req.ip
   // (used for tracking-endpoint rate limiting) reflects the real client IP.
