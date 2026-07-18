@@ -206,7 +206,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** user with "bounce" enabled gets an in-app notification on a hard
   bounce; user with it disabled doesn't.
 
-### ⬜ Task 18 — Follow-up reminders & customer engagement history (M)
+### ✅ Task 18 — Follow-up reminders & customer engagement history (M)
 **Depends on:** 15, 17
 - Per-send follow-up rule ("remind me if no reply/open in X days") → scheduled
   check → notification with one-click follow-up compose (pre-filled from a

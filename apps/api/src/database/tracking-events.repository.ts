@@ -94,6 +94,18 @@ export class TrackingEventsRepository {
     return rows;
   }
 
+  /** Every non-bot tracking event across all of a customer's messages, newest first — feeds the customer-profile communication timeline. */
+  async listForCustomer(customerId: string): Promise<TrackingEventRow[]> {
+    const { rows } = await this.pool.query<TrackingEventRow>(
+      `SELECT te.* FROM tracking_events te
+       JOIN email_messages em ON em.id = te.message_id
+       WHERE em.customer_id = $1 AND te.is_bot = false
+       ORDER BY te.occurred_at DESC`,
+      [customerId],
+    );
+    return rows;
+  }
+
   /** Distinct links clicked on this message within `windowMs` before `before` — feeds the "all links clicked instantly" bot heuristic. */
   async countRecentDistinctLinkClicks(
     messageId: string,

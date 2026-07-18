@@ -10,14 +10,17 @@ import type {
   CsvImportRowError,
   CustomerListResponse,
   CustomerSummary,
+  CustomerTimelineResponse,
 } from '@tft/shared';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { CustomersRepository } from '../database/customers.repository';
+import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import type { CustomerRow, TagRow } from '../database/rows';
 import { TagsRepository } from '../database/tags.repository';
 import { validateCustomFieldValue } from './custom-field-value.util';
 import { parseCsv, toCsvRow } from './csv.util';
-import { toCustomerSummary } from './customers.mapper';
+import { toCustomerSummary, toCustomerTimeline } from './customers.mapper';
 import type {
   CreateCustomerDto,
   CustomerListQueryDto,
@@ -32,6 +35,8 @@ export class CustomersService {
     private readonly customersRepository: CustomersRepository,
     private readonly customFieldDefsRepository: CustomFieldDefsRepository,
     private readonly tagsRepository: TagsRepository,
+    private readonly emailMessagesRepository: EmailMessagesRepository,
+    private readonly trackingEventsRepository: TrackingEventsRepository,
   ) {}
 
   async list(query: CustomerListQueryDto): Promise<CustomerListResponse> {
@@ -109,6 +114,19 @@ export class CustomersService {
 
     const [summary] = await this.toSummaries([updated]);
     return summary;
+  }
+
+  /** Full communication timeline (FR-2.3): every send plus its opens/clicks/replies/bounces, newest first. */
+  async getTimeline(id: string): Promise<CustomerTimelineResponse> {
+    const existing = await this.customersRepository.findById(id);
+    if (!existing) {
+      throw new NotFoundException('Customer not found');
+    }
+    const [messages, events] = await Promise.all([
+      this.emailMessagesRepository.listForCustomer(id),
+      this.trackingEventsRepository.listForCustomer(id),
+    ]);
+    return { items: toCustomerTimeline(messages, events) };
   }
 
   async delete(id: string): Promise<void> {

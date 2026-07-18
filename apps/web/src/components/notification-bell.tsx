@@ -12,6 +12,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   bounce: "Bounced",
   send_failed: "Send failed",
   quota_warning: "Quota warning",
+  follow_up_due: "Follow-up due",
 };
 
 export function NotificationBell() {
@@ -73,21 +74,38 @@ export function NotificationBell() {
                 </p>
               )}
               {notifications.map((notification) => (
-                <button
+                <div
                   key={notification.id}
-                  type="button"
-                  onClick={() => void markRead(notification.id)}
-                  className={`block w-full border-b border-zinc-100 px-3 py-2 text-left text-sm last:border-b-0 dark:border-zinc-900 ${
+                  className={`border-b border-zinc-100 px-3 py-2 text-sm last:border-b-0 dark:border-zinc-900 ${
                     notification.readAt
                       ? "text-zinc-500 dark:text-zinc-400"
                       : "bg-zinc-50 font-medium text-zinc-900 dark:bg-zinc-900 dark:text-zinc-50"
                   }`}
                 >
-                  <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                    {TYPE_LABELS[notification.type]}
-                  </span>
-                  {notification.title}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => void markRead(notification.id)}
+                    className="block w-full text-left"
+                  >
+                    <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+                      {TYPE_LABELS[notification.type]}
+                    </span>
+                    {notification.title}
+                  </button>
+                  {notification.type === "follow_up_due" &&
+                    notification.messageId && (
+                      <Link
+                        href={`/dashboard/compose?followUpTo=${notification.messageId}`}
+                        onClick={() => {
+                          setOpen(false);
+                          void markRead(notification.id);
+                        }}
+                        className="mt-1 inline-block text-xs font-medium text-blue-600 underline hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        Follow up →
+                      </Link>
+                    )}
+                </div>
               ))}
             </div>
           </div>

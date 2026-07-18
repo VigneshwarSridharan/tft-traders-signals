@@ -14,6 +14,8 @@ export const composeSendSchema = z
     overrideSuppression: z.boolean().optional(),
     scheduledFor: z.coerce.date().optional(),
     timezone: z.string().optional(),
+    parentMessageId: z.string().uuid().optional(),
+    followUpDays: z.coerce.number().int().positive().max(90).optional(),
   })
   .refine(
     (data) =>
@@ -26,7 +28,12 @@ export const composeSendSchema = z
   .refine(
     (data) => !data.scheduledFor || data.scheduledFor.getTime() > Date.now(),
     { message: 'scheduledFor must be in the future', path: ['scheduledFor'] },
-  );
+  )
+  .refine((data) => !data.parentMessageId || data.customerIds.length === 1, {
+    message:
+      'parentMessageId (a threaded follow-up) requires exactly one recipient',
+    path: ['parentMessageId'],
+  });
 
 export type ComposeSendDto = z.infer<typeof composeSendSchema>;
 

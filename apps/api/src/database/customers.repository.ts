@@ -219,6 +219,52 @@ export class CustomersRepository {
     );
   }
 
+  /**
+   * Recomputes every non-deleted customer's `engagement_score` in one
+   * set-based UPDATE, mirroring the daily_stats rollup's full-recompute
+   * style (idempotent, safe to re-run on a schedule).
+   *
+   * Formula: each tracking event contributes `weight * decay`, summed per
+   * customer across all their messages, then rounded to an int —
+   *   - weight ranks event importance: reply=5, click=3, open=1 (a reply is
+   *     the strongest engagement signal, an open the weakest).
+   *   - decay is an exponential half-life of 30 days
+   *     (0.5 ^ (daysAgo / 30)), so a customer active last week ranks above
+   *     one who was equally active six months ago — "recency-weighted".
+   * Both the weights and the half-life are reasonable defaults, not a
+   * spec'd formula; tune here if the ranking needs to shift.
+   */
+  async recomputeEngagementScores(): Promise<number> {
+    const { rowCount } = await this.pool.query(
+      `WITH scored AS (
+         SELECT
+           em.customer_id,
+           SUM(
+             (CASE te.event_type
+                WHEN 'reply' THEN 5
+                WHEN 'click' THEN 3
+                WHEN 'open' THEN 1
+                WHEN 'open_inferred' THEN 1
+                ELSE 0
+              END)
+             * POWER(2, -GREATEST(EXTRACT(EPOCH FROM (now() - te.occurred_at)) / 86400.0, 0) / 30.0)
+           ) AS score
+         FROM tracking_events te
+         JOIN email_messages em ON em.id = te.message_id
+         WHERE te.is_bot = false
+           AND te.event_type IN ('open', 'open_inferred', 'click', 'reply')
+         GROUP BY em.customer_id
+       )
+       UPDATE customers
+       SET engagement_score = COALESCE(
+         (SELECT ROUND(scored.score)::int FROM scored WHERE scored.customer_id = customers.id),
+         0
+       )
+       WHERE deleted_at IS NULL`,
+    );
+    return rowCount ?? 0;
+  }
+
   async getSuppressionFlags(
     emails: string[],
   ): Promise<Map<string, SuppressionFlagsRow>> {

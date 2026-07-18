@@ -16,6 +16,7 @@ import type {
   ComposeSendResponse,
   ComposeTestSendResponse,
   EmailMessageSummary,
+  FollowUpDraftResponse,
 } from '@tft/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -43,6 +44,13 @@ export class EmailMessagesController {
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<EmailMessageSummary> {
     return this.emailMessagesService.get(id);
+  }
+
+  @Get(':id/follow-up-draft')
+  getFollowUpDraft(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<FollowUpDraftResponse> {
+    return this.emailMessagesService.getFollowUpDraft(id);
   }
 
   @Post('compose')

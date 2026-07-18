@@ -46,6 +46,10 @@ export interface CreateEmailMessageInput {
   trackingEnabled: boolean;
   status: MessageStatus;
   queuedAt: Date | null;
+  parentMessageId?: string | null;
+  inReplyToHeader?: string | null;
+  referencesHeader?: string | null;
+  followUpDays?: number | null;
 }
 
 export interface CreateAttachmentInput {
@@ -65,8 +69,9 @@ export class EmailMessagesRepository {
       `INSERT INTO email_messages
          (public_token, sender_account_id, customer_id, template_version_id, sent_by,
           to_email, to_name, subject, body_html_rendered, body_text_rendered,
-          message_id_header, tracking_enabled, status, queued_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          message_id_header, tracking_enabled, status, queued_at,
+          parent_message_id, in_reply_to_header, references_header, follow_up_days)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
        RETURNING *`,
       [
         input.publicToken,
@@ -83,6 +88,10 @@ export class EmailMessagesRepository {
         input.trackingEnabled,
         input.status,
         input.queuedAt,
+        input.parentMessageId ?? null,
+        input.inReplyToHeader ?? null,
+        input.referencesHeader ?? null,
+        input.followUpDays ?? null,
       ],
     );
     return rows[0];
@@ -327,6 +336,49 @@ export class EmailMessagesRepository {
       [messageId],
     );
     return rows;
+  }
+
+  /** All messages sent to a customer, newest first — feeds the customer-profile communication timeline. */
+  async listForCustomer(customerId: string): Promise<EmailMessageRow[]> {
+    const { rows } = await this.pool.query<EmailMessageRow>(
+      `SELECT * FROM email_messages
+       WHERE customer_id = $1
+       ORDER BY COALESCE(sent_at, created_at) DESC`,
+      [customerId],
+    );
+    return rows;
+  }
+
+  /**
+   * Messages with a per-send follow-up rule (Task 18 / FR-8.7) whose window
+   * has elapsed with neither a reply nor an open, and that haven't already
+   * fired their reminder. Driven by the partial index on
+   * (follow_up_days IS NOT NULL AND follow_up_notified_at IS NULL).
+   */
+  async findDueFollowUps(now: Date): Promise<EmailMessageRow[]> {
+    const { rows } = await this.pool.query<EmailMessageRow>(
+      `SELECT * FROM email_messages
+       WHERE follow_up_days IS NOT NULL
+         AND follow_up_notified_at IS NULL
+         AND replied_at IS NULL
+         AND first_opened_at IS NULL
+         AND status IN ('sent', 'delivered')
+         AND sent_at IS NOT NULL
+         AND sent_at <= $1::timestamptz - (follow_up_days || ' days')::interval`,
+      [now],
+    );
+    return rows;
+  }
+
+  /** Marks a follow-up reminder as fired so the rollup job never re-notifies for the same message. */
+  async markFollowUpNotified(
+    id: string,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `UPDATE email_messages SET follow_up_notified_at = now() WHERE id = $1`,
+      [id],
+    );
   }
 
   async getAttachmentsForMessages(
