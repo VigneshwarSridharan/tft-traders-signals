@@ -22,6 +22,7 @@ import { ScheduledSendsRepository } from './scheduled-sends.repository';
 import { DailyStatsRepository } from './daily-stats.repository';
 import { AnalyticsLeaderboardsRepository } from './analytics-leaderboards.repository';
 import { NotificationsRepository } from './notifications.repository';
+import { SettingsRepository } from './settings.repository';
 
 @Global()
 @Module({
@@ -55,6 +56,7 @@ import { NotificationsRepository } from './notifications.repository';
     DailyStatsRepository,
     AnalyticsLeaderboardsRepository,
     NotificationsRepository,
+    SettingsRepository,
   ],
   exports: [
     PG_POOL,
@@ -77,6 +79,7 @@ import { NotificationsRepository } from './notifications.repository';
     DailyStatsRepository,
     AnalyticsLeaderboardsRepository,
     NotificationsRepository,
+    SettingsRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {

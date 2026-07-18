@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import type {
+  CustomerErasureResult,
+  CustomerGdprExport,
   CustomerSummary,
   CustomerTimelineEntry,
   CustomerTimelineEventType,
   CustomerTimelineResponse,
 } from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleString();
@@ -71,12 +74,17 @@ function TimelineRow({ entry }: { entry: CustomerTimelineEntry }) {
 
 export default function CustomerDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const customerId = params.id;
+  const { user: currentUser } = useAuth();
 
   const [customer, setCustomer] = useState<CustomerSummary | null>(null);
   const [timeline, setTimeline] = useState<CustomerTimelineEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [gdprError, setGdprError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [erasing, setErasing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +111,57 @@ export default function CustomerDetailPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount / id change
     void load();
   }, [load]);
+
+  async function exportGdprData() {
+    setGdprError(null);
+    setExporting(true);
+    try {
+      const data = await apiFetch<CustomerGdprExport>(
+        `/customers/${customerId}/gdpr-export`,
+      );
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `customer-${customerId}-gdpr-export.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setGdprError(
+        err instanceof ApiError ? err.message : "Failed to export data",
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function eraseCustomer() {
+    if (!customer) {
+      return;
+    }
+    if (
+      !window.confirm(
+        `Permanently erase "${customer.name}" (${customer.email})? This deletes the customer record and cannot be undone. Their sent messages are anonymized and kept for aggregate reporting.`,
+      )
+    ) {
+      return;
+    }
+    setGdprError(null);
+    setErasing(true);
+    try {
+      await apiFetch<CustomerErasureResult>(`/customers/${customerId}/erase`, {
+        method: "POST",
+      });
+      router.push("/dashboard/customers");
+    } catch (err) {
+      setGdprError(
+        err instanceof ApiError ? err.message : "Failed to erase customer",
+      );
+      setErasing(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -137,13 +196,39 @@ export default function CustomerDetailPage() {
             {customer.company ? ` · ${customer.company}` : ""}
           </p>
         </div>
-        <Link
-          href="/dashboard/compose"
-          className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-          New email
-        </Link>
+        <div className="flex items-center gap-2">
+          {currentUser?.role === "admin" && (
+            <>
+              <button
+                type="button"
+                disabled={exporting}
+                onClick={() => void exportGdprData()}
+                className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              >
+                {exporting ? "Exporting…" : "Export data (GDPR)"}
+              </button>
+              <button
+                type="button"
+                disabled={erasing}
+                onClick={() => void eraseCustomer()}
+                className="rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950"
+              >
+                {erasing ? "Erasing…" : "Erase customer"}
+              </button>
+            </>
+          )}
+          <Link
+            href="/dashboard/compose"
+            className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            New email
+          </Link>
+        </div>
       </div>
+
+      {gdprError && (
+        <p className="text-sm text-red-600 dark:text-red-400">{gdprError}</p>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Engagement score" value={customer.engagementScore} />

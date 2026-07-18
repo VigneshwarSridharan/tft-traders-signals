@@ -239,7 +239,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** each listed action produces a correct audit row; non-admins
   cannot read audit logs.
 
-### ⬜ Task 21 — Unsubscribe & compliance tooling (M)
+### ✅ Task 21 — Unsubscribe & compliance tooling (M)
 **Depends on:** 9
 - Unsubscribe link injection + `List-Unsubscribe` / `List-Unsubscribe-Post`
   headers; hosted one-click unsubscribe page → suppression + event.

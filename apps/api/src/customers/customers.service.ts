@@ -1,13 +1,17 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { Pool } from 'pg';
 import { z } from 'zod';
 import type {
   CsvImportResult,
   CsvImportRowError,
+  CustomerErasureResult,
+  CustomerGdprExport,
   CustomerListResponse,
   CustomerSummary,
   CustomerTimelineResponse,
@@ -15,8 +19,11 @@ import type {
 import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { CustomersRepository } from '../database/customers.repository';
+import { PG_POOL } from '../database/database.constants';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { SuppressionsRepository } from '../database/suppressions.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
+import { withTransaction } from '../database/transaction.util';
 import type { CustomerRow, TagRow } from '../database/rows';
 import { TagsRepository } from '../database/tags.repository';
 import { validateCustomFieldValue } from './custom-field-value.util';
@@ -33,11 +40,13 @@ const emailSchema = z.string().email();
 @Injectable()
 export class CustomersService {
   constructor(
+    @Inject(PG_POOL) private readonly pool: Pool,
     private readonly customersRepository: CustomersRepository,
     private readonly customFieldDefsRepository: CustomFieldDefsRepository,
     private readonly tagsRepository: TagsRepository,
     private readonly emailMessagesRepository: EmailMessagesRepository,
     private readonly trackingEventsRepository: TrackingEventsRepository,
+    private readonly suppressionsRepository: SuppressionsRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
 
@@ -137,6 +146,121 @@ export class CustomersService {
       throw new NotFoundException('Customer not found');
     }
     await this.customersRepository.softDelete(id);
+  }
+
+  /** GDPR right to access: everything we hold that's tied to this customer, as a single downloadable JSON document. */
+  async exportGdprData(
+    id: string,
+    userId: string,
+  ): Promise<CustomerGdprExport> {
+    const customer = await this.customersRepository.findById(id);
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const [fieldValues, fieldDefs, tags, messages, suppression] =
+      await Promise.all([
+        this.customersRepository.getFieldValues(id),
+        this.customFieldDefsRepository.list(),
+        this.tagsRepository.listForEntity('customer', id),
+        this.emailMessagesRepository.listForCustomer(id),
+        this.suppressionsRepository.findByEmail(customer.email),
+      ]);
+
+    const fieldKeyById = new Map(fieldDefs.map((def) => [def.id, def.key]));
+    const customFields: Record<string, string | null> = {};
+    for (const fieldValue of fieldValues) {
+      const key = fieldKeyById.get(fieldValue.field_def_id);
+      if (key) {
+        customFields[key] = fieldValue.value;
+      }
+    }
+
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'customer.gdpr_export',
+      entityType: 'customer',
+      entityId: id,
+      metadata: { email: customer.email },
+    });
+
+    return {
+      exportedAt: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        company: customer.company,
+        phone: customer.phone,
+        notes: customer.notes,
+        trackingOptOut: customer.tracking_opt_out,
+        engagementScore: customer.engagement_score,
+        createdAt: customer.created_at.toISOString(),
+      },
+      customFields,
+      tags: tags.map((tag) => tag.name),
+      messages: messages.map((message) => ({
+        id: message.id,
+        subject: message.subject,
+        status: message.status,
+        sentAt: message.sent_at?.toISOString() ?? null,
+        openCount: message.open_count,
+        clickCount: message.click_count,
+        repliedAt: message.replied_at?.toISOString() ?? null,
+        unsubscribedAt: message.unsubscribed_at?.toISOString() ?? null,
+      })),
+      suppression: suppression
+        ? {
+            reason: suppression.reason,
+            suppressedAt: suppression.suppressed_at.toISOString(),
+            releasedAt: suppression.released_at?.toISOString() ?? null,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * GDPR right to erasure: permanently deletes the customer row. Messages
+   * sent to them are anonymized and kept (aggregate stats stay consistent);
+   * their suppression entry (if any) survives so the address stays blocked.
+   * Looks the customer up ignoring `deleted_at` so an already
+   * soft-deleted customer can still be erased.
+   */
+  async erase(id: string, userId: string): Promise<CustomerErasureResult> {
+    const customer = await this.customersRepository.findByIdAny(id);
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const anonymizedEmail = `erased-${customer.id}@erased.invalid`;
+
+    return withTransaction(this.pool, async (client) => {
+      const anonymizedMessageCount =
+        await this.emailMessagesRepository.anonymizeForCustomer(
+          customer.id,
+          anonymizedEmail,
+          client,
+        );
+      await this.suppressionsRepository.clearCustomerId(customer.id, client);
+      await this.tagsRepository.removeAllTaggingsForEntity(
+        'customer',
+        customer.id,
+        client,
+      );
+      await this.customersRepository.hardDelete(customer.id, client);
+      await this.auditLogsRepository.record(
+        {
+          userId,
+          action: 'customer.erase',
+          entityType: 'customer',
+          entityId: customer.id,
+          metadata: { email: customer.email, anonymizedMessageCount },
+        },
+        client,
+      );
+
+      return { erasedCustomerId: customer.id, anonymizedMessageCount };
+    });
   }
 
   async addTag(id: string, tagId: string): Promise<CustomerSummary> {

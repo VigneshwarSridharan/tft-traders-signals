@@ -9,6 +9,7 @@ import { CustomersRepository } from '../database/customers.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { TagsRepository } from '../database/tags.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { SuppressionsRepository } from '../database/suppressions.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import type {
   CustomerRow,
@@ -120,6 +121,7 @@ describe('CustomersService', () => {
   let tagsRepository: jest.Mocked<TagsRepository>;
   let emailMessagesRepository: jest.Mocked<EmailMessagesRepository>;
   let trackingEventsRepository: jest.Mocked<TrackingEventsRepository>;
+  let suppressionsRepository: jest.Mocked<SuppressionsRepository>;
 
   beforeEach(() => {
     customersRepository = {
@@ -135,6 +137,8 @@ describe('CustomersService', () => {
       getFieldValuesForCustomers: jest.fn().mockResolvedValue(new Map()),
       setFieldValue: jest.fn(),
       getSuppressionFlags: jest.fn().mockResolvedValue(new Map()),
+      findByIdAny: jest.fn(),
+      hardDelete: jest.fn(),
     } as unknown as jest.Mocked<CustomersRepository>;
 
     customFieldDefsRepository = {
@@ -157,26 +161,42 @@ describe('CustomersService', () => {
       listForEntities: jest.fn().mockResolvedValue(new Map()),
       addTagging: jest.fn(),
       removeTagging: jest.fn(),
+      removeAllTaggingsForEntity: jest.fn(),
     } as unknown as jest.Mocked<TagsRepository>;
 
     emailMessagesRepository = {
       listForCustomer: jest.fn().mockResolvedValue([]),
+      anonymizeForCustomer: jest.fn().mockResolvedValue(0),
     } as unknown as jest.Mocked<EmailMessagesRepository>;
 
     trackingEventsRepository = {
       listForCustomer: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<TrackingEventsRepository>;
 
+    suppressionsRepository = {
+      findByEmail: jest.fn().mockResolvedValue(null),
+      clearCustomerId: jest.fn(),
+    } as unknown as jest.Mocked<SuppressionsRepository>;
+
     const auditLogsRepository = {
       record: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<AuditLogsRepository>;
 
+    const pool = {
+      connect: jest.fn().mockResolvedValue({
+        query: jest.fn().mockResolvedValue({ rows: [] }),
+        release: jest.fn(),
+      }),
+    } as unknown as import('pg').Pool;
+
     service = new CustomersService(
+      pool,
       customersRepository,
       customFieldDefsRepository,
       tagsRepository,
       emailMessagesRepository,
       trackingEventsRepository,
+      suppressionsRepository,
       auditLogsRepository,
     );
   });

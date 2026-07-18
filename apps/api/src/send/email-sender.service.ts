@@ -121,6 +121,8 @@ export class EmailSenderService {
         })),
       );
 
+      const unsubscribeUrl = `https://${this.configService.get('TRACKING_DOMAIN', { infer: true })}/u/${message.public_token}`;
+
       const info = await transporter.sendMail({
         from: senderAccount.display_name
           ? `"${senderAccount.display_name}" <${senderAccount.email}>`
@@ -137,6 +139,12 @@ export class EmailSenderService {
         inReplyTo: message.in_reply_to_header ?? undefined,
         references: message.references_header ?? undefined,
         attachments: attachmentPayload,
+        // RFC 8058 one-click unsubscribe headers — the compose-time footer
+        // (unsubscribe-footer.util.ts) links to the same /u/:token page.
+        headers: {
+          'List-Unsubscribe': `<${unsubscribeUrl}>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        },
       });
 
       await this.emailMessagesRepository.markSent(

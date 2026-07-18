@@ -24,3 +24,5 @@ export * from "./analytics";
 export * from "./realtime-event";
 export * from "./notification";
 export * from "./audit-log";
+export * from "./settings";
+export * from "./customer-gdpr";

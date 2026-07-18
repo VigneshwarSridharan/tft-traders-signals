@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
 import type { CustomerSortField } from '@tft/shared';
 import { PG_POOL } from './database.constants';
+import type { Queryable } from './queryable';
 import type {
   CustomerFieldValueRow,
   CustomerRow,
@@ -107,6 +108,15 @@ export class CustomersRepository {
     return rows[0] ?? null;
   }
 
+  /** Ignores `deleted_at` — GDPR erasure must reach a soft-deleted customer too, not just active ones. */
+  async findByIdAny(id: string): Promise<CustomerRow | null> {
+    const { rows } = await this.pool.query<CustomerRow>(
+      `SELECT * FROM customers WHERE id = $1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+
   async findByEmail(email: string): Promise<CustomerRow | null> {
     const { rows } = await this.pool.query<CustomerRow>(
       `SELECT * FROM customers WHERE email = $1 AND deleted_at IS NULL`,
@@ -176,6 +186,15 @@ export class CustomersRepository {
       `UPDATE customers SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`,
       [id],
     );
+  }
+
+  /**
+   * GDPR erasure: permanently removes the customer row (customer_field_values
+   * cascade with it). Callers must anonymize/detach every other table that
+   * references this customer_id first — see CustomersService.erase().
+   */
+  async hardDelete(id: string, executor: Queryable = this.pool): Promise<void> {
+    await executor.query(`DELETE FROM customers WHERE id = $1`, [id]);
   }
 
   async getFieldValues(customerId: string): Promise<CustomerFieldValueRow[]> {

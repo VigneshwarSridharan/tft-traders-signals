@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
 import { PG_POOL } from './database.constants';
+import type { Queryable } from './queryable';
 import type { TagRow } from './rows';
 
 export interface CreateTagInput {
@@ -126,6 +127,18 @@ export class TagsRepository {
       `DELETE FROM taggings
        WHERE tag_id = $1 AND entity_type = $2 AND entity_id = $3`,
       [tagId, entityType, entityId],
+    );
+  }
+
+  /** Used by GDPR erasure — taggings have no FK to their entity, so they don't auto-clean on delete. */
+  async removeAllTaggingsForEntity(
+    entityType: 'customer' | 'message' | 'template',
+    entityId: string,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `DELETE FROM taggings WHERE entity_type = $1 AND entity_id = $2`,
+      [entityType, entityId],
     );
   }
 }

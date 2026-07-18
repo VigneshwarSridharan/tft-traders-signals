@@ -30,6 +30,7 @@ import { TemplateCategoriesRepository } from '../database/template-categories.re
 import { TemplatesRepository } from '../database/templates.repository';
 import { EmailSenderService } from '../send/email-sender.service';
 import { SendQueueService } from '../send/send-queue.service';
+import { SettingsService } from '../settings/settings.service';
 import {
   htmlToPlainText,
   sanitizeTemplateHtml,
@@ -51,6 +52,7 @@ import type {
 } from './dto/email-messages.schemas';
 import { toEmailMessageSummary } from './email-messages.mapper';
 import { applyTracking, type RewrittenLink } from './tracking-injection.util';
+import { applyUnsubscribeFooter } from './unsubscribe-footer.util';
 
 interface UploadedAttachment {
   filename: string;
@@ -76,6 +78,7 @@ export class EmailMessagesService {
     private readonly emailSenderService: EmailSenderService,
     private readonly templateCategoriesRepository: TemplateCategoriesRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async get(
@@ -213,6 +216,11 @@ export class EmailMessagesService {
       [...customersById.values()].map((customer) => customer.email),
     );
 
+    const complianceSettings = await this.settingsService.getCompliance();
+    const trackingDomain = this.configService.get('TRACKING_DOMAIN', {
+      infer: true,
+    });
+
     const results: ComposeRecipientResult[] = [];
 
     for (const customerId of uniqueCustomerIds) {
@@ -292,13 +300,25 @@ export class EmailMessagesService {
       if (trackingEnabled) {
         const trackingResult = applyTracking(finalBodyHtml, {
           publicToken,
-          trackingDomain: this.configService.get('TRACKING_DOMAIN', {
-            infer: true,
-          }),
+          trackingDomain,
         });
         bodyHtmlForSend = trackingResult.html;
         linksToPersist = trackingResult.links;
       }
+
+      // Unsubscribe link + CAN-SPAM address apply regardless of the
+      // tracking-pixel preference — that flag only controls open/click
+      // measurement, not the recipient's ability to unsubscribe.
+      const footerResult = applyUnsubscribeFooter(
+        bodyHtmlForSend,
+        finalBodyText,
+        {
+          unsubscribeUrl: `https://${trackingDomain}/u/${publicToken}`,
+          physicalAddress: complianceSettings.physicalAddress,
+        },
+      );
+      bodyHtmlForSend = footerResult.html;
+      const bodyTextForSend = footerResult.text;
 
       const message = await this.emailMessagesRepository.create({
         publicToken,
@@ -310,7 +330,7 @@ export class EmailMessagesService {
         toName: customer.name,
         subject: subjectResult.rendered,
         bodyHtmlRendered: bodyHtmlForSend,
-        bodyTextRendered: finalBodyText,
+        bodyTextRendered: bodyTextForSend,
         messageIdHeader: generateMessageIdHeader(
           this.configService.get('SEND_FROM_DOMAIN', { infer: true }),
         ),
@@ -539,6 +559,11 @@ export class EmailMessagesService {
       (currentUserRole === 'agent' && message.sent_by !== currentUserId)
     ) {
       throw new NotFoundException('Message not found');
+    }
+    if (!message.customer_id) {
+      throw new BadRequestException(
+        'Cannot follow up on a message whose customer has been erased',
+      );
     }
 
     const followUpCategory =

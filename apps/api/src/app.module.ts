@@ -24,6 +24,9 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { EngagementModule } from './engagement/engagement.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { SettingsModule } from './settings/settings.module';
+import { UnsubscribeModule } from './unsubscribe/unsubscribe.module';
+import { ComplianceModule } from './compliance/compliance.module';
 
 @Module({
   imports: [
@@ -52,6 +55,9 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
     NotificationsModule,
     EngagementModule,
     AuditLogsModule,
+    SettingsModule,
+    UnsubscribeModule,
+    ComplianceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

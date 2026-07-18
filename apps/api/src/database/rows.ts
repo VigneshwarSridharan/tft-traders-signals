@@ -152,7 +152,7 @@ export interface EmailMessageRow {
   id: string;
   public_token: string;
   sender_account_id: string;
-  customer_id: string;
+  customer_id: string | null;
   template_version_id: string | null;
   sent_by: string | null;
   to_email: string;
@@ -298,6 +298,13 @@ export interface NotificationRow {
   title: string;
   body: string | null;
   read_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface SettingsRow {
+  key: string;
+  value: unknown;
   created_at: Date;
   updated_at: Date;
 }

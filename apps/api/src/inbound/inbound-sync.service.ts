@@ -286,7 +286,11 @@ export class InboundSyncService {
   }
 
   private async applySuppressionPolicy(
-    matchedMessage: { id: string; to_email: string; customer_id: string },
+    matchedMessage: {
+      id: string;
+      to_email: string;
+      customer_id: string | null;
+    },
     bounceClass: 'hard' | 'soft',
     client: Queryable,
   ): Promise<void> {
