@@ -20,9 +20,11 @@ import type {
   CustomerSummary,
   CustomerTimelineResponse,
 } from '@tft/shared';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { CustomersService } from './customers.service';
 import {
@@ -53,8 +55,11 @@ export class CustomersController {
 
   @Get('export')
   @Roles('admin', 'manager')
-  async export(@Res() res: Response): Promise<void> {
-    const csv = await this.customersService.exportCsv();
+  async export(
+    @Res() res: Response,
+    @CurrentUser() user: AccessTokenPayload,
+  ): Promise<void> {
+    const csv = await this.customersService.exportCsv(user.sub);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader(
       'Content-Disposition',

@@ -44,6 +44,17 @@ export class UsersRepository {
     return rows;
   }
 
+  async findByIds(ids: string[]): Promise<UserRow[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+    const { rows } = await this.pool.query<UserRow>(
+      `SELECT * FROM users WHERE id = ANY($1::uuid[])`,
+      [ids],
+    );
+    return rows;
+  }
+
   async create(input: CreateUserInput): Promise<UserRow> {
     const { rows } = await this.pool.query<UserRow>(
       `INSERT INTO users (email, name, password_hash, role)

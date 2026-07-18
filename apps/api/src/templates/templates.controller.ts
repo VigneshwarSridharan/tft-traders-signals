@@ -93,8 +93,9 @@ export class TemplatesController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateTemplateSchema)) body: UpdateTemplateDto,
+    @CurrentUser() user: AccessTokenPayload,
   ): Promise<EmailTemplateSummary> {
-    return this.templatesService.update(id, body);
+    return this.templatesService.update(id, body, user.sub);
   }
 
   @Post(':id/versions')
@@ -139,7 +140,10 @@ export class TemplatesController {
   @Delete(':id')
   @Roles('admin', 'manager')
   @HttpCode(HttpStatus.NO_CONTENT)
-  delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.templatesService.delete(id);
+  delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AccessTokenPayload,
+  ): Promise<void> {
+    return this.templatesService.delete(id, user.sub);
   }
 }

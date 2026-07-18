@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SenderAccountsService } from './sender-accounts.service';
 import { MailConnectionTester } from './mail-connection-tester.service';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { decryptSecret, encryptSecret } from '../common/crypto.util';
 import type { SenderAccountRow } from '../database/rows';
@@ -35,6 +36,7 @@ describe('SenderAccountsService', () => {
   let repository: jest.Mocked<SenderAccountsRepository>;
   let mailConnectionTester: jest.Mocked<MailConnectionTester>;
   let configService: jest.Mocked<ConfigService>;
+  let auditLogsRepository: jest.Mocked<AuditLogsRepository>;
 
   beforeEach(() => {
     repository = {
@@ -58,10 +60,15 @@ describe('SenderAccountsService', () => {
       get: jest.fn(() => ENCRYPTION_KEY),
     } as unknown as jest.Mocked<ConfigService>;
 
+    auditLogsRepository = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditLogsRepository>;
+
     service = new SenderAccountsService(
       repository,
       mailConnectionTester,
       configService,
+      auditLogsRepository,
     );
   });
 

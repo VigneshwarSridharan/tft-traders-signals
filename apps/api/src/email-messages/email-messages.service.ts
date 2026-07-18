@@ -19,6 +19,7 @@ import {
   generateMessageIdHeader,
   generatePublicToken,
 } from '../common/id.util';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import { EmailLinksRepository } from '../database/email-links.repository';
@@ -74,6 +75,7 @@ export class EmailMessagesService {
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly emailSenderService: EmailSenderService,
     private readonly templateCategoriesRepository: TemplateCategoriesRepository,
+    private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
 
   async get(
@@ -237,7 +239,10 @@ export class EmailMessagesService {
         });
         continue;
       }
-      if (flags?.suppressed && canOverrideSuppression) {
+      const suppressionOverridden = Boolean(
+        flags?.suppressed && canOverrideSuppression,
+      );
+      if (suppressionOverridden) {
         this.logger.warn(
           `Suppression override by user ${userId} for customer ${customer.id} (sender ${senderAccount.id})`,
         );
@@ -351,6 +356,27 @@ export class EmailMessagesService {
         });
       } else {
         await this.sendQueueService.enqueueSend(message.id);
+      }
+
+      await this.auditLogsRepository.record({
+        userId,
+        action: 'message.send',
+        entityType: 'email_message',
+        entityId: message.id,
+        metadata: {
+          customerId: customer.id,
+          senderAccountId: senderAccount.id,
+          scheduled: Boolean(request.scheduledFor),
+        },
+      });
+      if (suppressionOverridden) {
+        await this.auditLogsRepository.record({
+          userId,
+          action: 'suppression.override',
+          entityType: 'email_message',
+          entityId: message.id,
+          metadata: { customerId: customer.id, email: customer.email },
+        });
       }
 
       results.push({

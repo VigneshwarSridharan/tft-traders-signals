@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import type { EnvConfig } from '../config/env.validation';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { InvitationsRepository } from '../database/invitations.repository';
 import { SessionsRepository } from '../database/sessions.repository';
 import { UsersRepository } from '../database/users.repository';
@@ -34,6 +35,7 @@ export class AuthService {
     private readonly invitationsRepository: InvitationsRepository,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
 
   async validateCredentials(email: string, password: string): Promise<UserRow> {
@@ -53,6 +55,13 @@ export class AuthService {
   async login(user: UserRow, meta: RequestMeta): Promise<TokenPair> {
     const tokens = await this.issueTokens(user, meta);
     await this.usersRepository.touchLastLogin(user.id);
+    await this.auditLogsRepository.record({
+      userId: user.id,
+      action: 'auth.login',
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { email: user.email },
+    });
     return tokens;
   }
 
@@ -83,7 +92,19 @@ export class AuthService {
     if (!refreshToken) {
       return;
     }
+    const session = await this.sessionsRepository.findValidByHash(
+      hashToken(refreshToken),
+    );
     await this.sessionsRepository.revokeByHash(hashToken(refreshToken));
+    if (session) {
+      await this.auditLogsRepository.record({
+        userId: session.user_id,
+        action: 'auth.logout',
+        entityType: 'user',
+        entityId: session.user_id,
+        metadata: {},
+      });
+    }
   }
 
   async acceptInvitation(
@@ -118,6 +139,13 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user, meta);
     await this.usersRepository.touchLastLogin(user.id);
+    await this.auditLogsRepository.record({
+      userId: user.id,
+      action: 'auth.accept_invitation',
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { email: user.email, role: user.role },
+    });
     return { ...tokens, user };
   }
 

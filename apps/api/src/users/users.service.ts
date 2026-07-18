@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { InvitationSummary, UserSummary } from '@tft/shared';
 import type { EnvConfig } from '../config/env.validation';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { InvitationsRepository } from '../database/invitations.repository';
 import { UsersRepository } from '../database/users.repository';
 import { generateToken, hashToken } from '../auth/token.util';
@@ -20,6 +21,7 @@ export class UsersService {
     private readonly usersRepository: UsersRepository,
     private readonly invitationsRepository: InvitationsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
 
   async list(): Promise<UserSummary[]> {
@@ -35,7 +37,11 @@ export class UsersService {
     return toUserSummary(row);
   }
 
-  async update(id: string, patch: UpdateUserDto): Promise<UserSummary> {
+  async update(
+    id: string,
+    patch: UpdateUserDto,
+    actorUserId: string | null = null,
+  ): Promise<UserSummary> {
     const existing = await this.usersRepository.findById(id);
     if (!existing) {
       throw new NotFoundException('User not found');
@@ -59,6 +65,17 @@ export class UsersService {
     if (!updated) {
       throw new NotFoundException('User not found');
     }
+
+    if (patch.role !== undefined && patch.role !== existing.role) {
+      await this.auditLogsRepository.record({
+        userId: actorUserId,
+        action: 'user.role_change',
+        entityType: 'user',
+        entityId: id,
+        metadata: { from: existing.role, to: patch.role },
+      });
+    }
+
     return toUserSummary(updated);
   }
 

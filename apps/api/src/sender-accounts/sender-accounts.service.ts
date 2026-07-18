@@ -10,6 +10,7 @@ import type {
 } from '@tft/shared';
 import type { EnvConfig } from '../config/env.validation';
 import { decryptSecret, encryptSecret } from '../common/crypto.util';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { MailConnectionTester } from './mail-connection-tester.service';
 import { toSenderAccountSummary } from './sender-accounts.mapper';
@@ -24,6 +25,7 @@ export class SenderAccountsService {
     private readonly senderAccountsRepository: SenderAccountsRepository,
     private readonly mailConnectionTester: MailConnectionTester,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
 
   private get encryptionKey(): string {
@@ -52,7 +54,10 @@ export class SenderAccountsService {
     return toSenderAccountSummary(row, usage);
   }
 
-  async create(input: CreateSenderAccountDto): Promise<SenderAccountSummary> {
+  async create(
+    input: CreateSenderAccountDto,
+    userId: string | null = null,
+  ): Promise<SenderAccountSummary> {
     const existing = await this.senderAccountsRepository.findByEmail(
       input.email,
     );
@@ -75,12 +80,21 @@ export class SenderAccountsService {
       hourlyQuota: input.hourlyQuota ?? null,
     });
 
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'sender_account.create',
+      entityType: 'sender_account',
+      entityId: row.id,
+      metadata: { email: row.email },
+    });
+
     return toSenderAccountSummary(row, { dailyUsed: 0, hourlyUsed: 0 });
   }
 
   async update(
     id: string,
     patch: UpdateSenderAccountDto,
+    userId: string | null = null,
   ): Promise<SenderAccountSummary> {
     const existing = await this.senderAccountsRepository.findById(id);
     if (!existing) {
@@ -99,10 +113,22 @@ export class SenderAccountsService {
     }
 
     const usage = await this.senderAccountsRepository.getUsage(id);
+
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'sender_account.update',
+      entityType: 'sender_account',
+      entityId: id,
+      metadata: {
+        fields: Object.keys(rest),
+        credentialRotated: Boolean(appPassword),
+      },
+    });
+
     return toSenderAccountSummary(updated, usage);
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, userId: string | null = null): Promise<void> {
     const existing = await this.senderAccountsRepository.findById(id);
     if (!existing) {
       throw new NotFoundException('Sender account not found');
@@ -114,6 +140,13 @@ export class SenderAccountsService {
       );
     }
     await this.senderAccountsRepository.delete(id);
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'sender_account.delete',
+      entityType: 'sender_account',
+      entityId: id,
+      metadata: { email: existing.email },
+    });
   }
 
   async verify(id: string): Promise<VerifySenderAccountResponse> {

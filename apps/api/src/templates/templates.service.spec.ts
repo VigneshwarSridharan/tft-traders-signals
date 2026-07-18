@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { TemplatesService } from './templates.service';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { TemplatesRepository } from '../database/templates.repository';
 import { TemplateCategoriesRepository } from '../database/template-categories.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
@@ -82,6 +83,7 @@ describe('TemplatesService', () => {
   let templateCategoriesRepository: jest.Mocked<TemplateCategoriesRepository>;
   let customFieldDefsRepository: jest.Mocked<CustomFieldDefsRepository>;
   let customersRepository: jest.Mocked<CustomersRepository>;
+  let auditLogsRepository: jest.Mocked<AuditLogsRepository>;
 
   beforeEach(() => {
     templatesRepository = {
@@ -120,11 +122,16 @@ describe('TemplatesService', () => {
       getFieldValues: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<CustomersRepository>;
 
+    auditLogsRepository = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditLogsRepository>;
+
     service = new TemplatesService(
       templatesRepository,
       templateCategoriesRepository,
       customFieldDefsRepository,
       customersRepository,
+      auditLogsRepository,
     );
   });
 

@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CustomersService } from './customers.service';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { TagsRepository } from '../database/tags.repository';
@@ -166,12 +167,17 @@ describe('CustomersService', () => {
       listForCustomer: jest.fn().mockResolvedValue([]),
     } as unknown as jest.Mocked<TrackingEventsRepository>;
 
+    const auditLogsRepository = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditLogsRepository>;
+
     service = new CustomersService(
       customersRepository,
       customFieldDefsRepository,
       tagsRepository,
       emailMessagesRepository,
       trackingEventsRepository,
+      auditLogsRepository,
     );
   });
 

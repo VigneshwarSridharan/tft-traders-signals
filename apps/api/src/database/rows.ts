@@ -268,6 +268,17 @@ export interface SuppressionRow {
   updated_at: Date;
 }
 
+export interface AuditLogRow {
+  id: string;
+  user_id: string | null;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown>;
+  ip: string | null;
+  created_at: Date;
+}
+
 export interface ScheduledSendRow {
   id: string;
   message_id: string;

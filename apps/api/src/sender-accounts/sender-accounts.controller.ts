@@ -15,9 +15,11 @@ import type {
   SenderAccountSummary,
   VerifySenderAccountResponse,
 } from '@tft/shared';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import {
   createSenderAccountSchema,
@@ -47,8 +49,9 @@ export class SenderAccountsController {
   create(
     @Body(new ZodValidationPipe(createSenderAccountSchema))
     body: CreateSenderAccountDto,
+    @CurrentUser() user: AccessTokenPayload,
   ): Promise<SenderAccountSummary> {
-    return this.senderAccountsService.create(body);
+    return this.senderAccountsService.create(body, user.sub);
   }
 
   @Patch(':id')
@@ -56,14 +59,18 @@ export class SenderAccountsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateSenderAccountSchema))
     body: UpdateSenderAccountDto,
+    @CurrentUser() user: AccessTokenPayload,
   ): Promise<SenderAccountSummary> {
-    return this.senderAccountsService.update(id, body);
+    return this.senderAccountsService.update(id, body, user.sub);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
-    return this.senderAccountsService.delete(id);
+  delete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AccessTokenPayload,
+  ): Promise<void> {
+    return this.senderAccountsService.delete(id, user.sub);
   }
 
   @Post(':id/verify')

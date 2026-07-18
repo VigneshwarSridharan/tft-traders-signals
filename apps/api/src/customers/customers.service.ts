@@ -12,6 +12,7 @@ import type {
   CustomerSummary,
   CustomerTimelineResponse,
 } from '@tft/shared';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
@@ -37,6 +38,7 @@ export class CustomersService {
     private readonly tagsRepository: TagsRepository,
     private readonly emailMessagesRepository: EmailMessagesRepository,
     private readonly trackingEventsRepository: TrackingEventsRepository,
+    private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
 
   async list(query: CustomerListQueryDto): Promise<CustomerListResponse> {
@@ -158,7 +160,7 @@ export class CustomersService {
     return summary;
   }
 
-  async exportCsv(): Promise<string> {
+  async exportCsv(userId: string | null = null): Promise<string> {
     const rows = await this.customersRepository.listAll();
     const fieldDefs = await this.customFieldDefsRepository.list();
     const fieldValuesByCustomer =
@@ -194,6 +196,14 @@ export class CustomersService {
         ]),
       );
     }
+
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'customer.export',
+      entityType: null,
+      entityId: null,
+      metadata: { rowCount: rows.length },
+    });
 
     return lines.join('\n');
   }

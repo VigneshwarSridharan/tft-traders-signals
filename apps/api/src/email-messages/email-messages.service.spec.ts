@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmailMessagesService } from './email-messages.service';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { ScheduledSendsRepository } from '../database/scheduled-sends.repository';
@@ -114,6 +115,7 @@ describe('EmailMessagesService', () => {
   let configService: ConfigService<EnvConfig, true>;
   let emailSenderService: jest.Mocked<EmailSenderService>;
   let templateCategoriesRepository: jest.Mocked<TemplateCategoriesRepository>;
+  let auditLogsRepository: jest.Mocked<AuditLogsRepository>;
 
   beforeEach(() => {
     emailMessagesRepository = {
@@ -174,6 +176,10 @@ describe('EmailMessagesService', () => {
       findByName: jest.fn().mockResolvedValue(null),
     } as unknown as jest.Mocked<TemplateCategoriesRepository>;
 
+    auditLogsRepository = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditLogsRepository>;
+
     service = new EmailMessagesService(
       emailMessagesRepository,
       emailLinksRepository,
@@ -186,6 +192,7 @@ describe('EmailMessagesService', () => {
       configService,
       emailSenderService,
       templateCategoriesRepository,
+      auditLogsRepository,
     );
   });
 
