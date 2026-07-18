@@ -309,6 +309,41 @@ export interface SettingsRow {
   updated_at: Date;
 }
 
+export interface ApiKeyRow {
+  id: string;
+  user_id: string;
+  name: string;
+  key_hash: string;
+  scopes: string[];
+  last_used_at: Date | null;
+  expires_at: Date | null;
+  revoked_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface WebhookEndpointRow {
+  id: string;
+  url: string;
+  secret_enc: Buffer;
+  events: string[];
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface WebhookDeliveryRow {
+  id: string;
+  endpoint_id: string;
+  event_type: string;
+  payload: Record<string, unknown>;
+  attempt: number;
+  response_status: number | null;
+  delivered_at: Date | null;
+  next_retry_at: Date | null;
+  created_at: Date;
+}
+
 export interface DailyStatsRow {
   id: string;
   day: Date;

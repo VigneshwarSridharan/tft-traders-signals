@@ -6,6 +6,7 @@ export const NOTIFICATION_TYPES = [
   "send_failed",
   "quota_warning",
   "follow_up_due",
+  "webhook_disabled",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
@@ -28,6 +29,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   send_failed: { inApp: true, emailDigest: false },
   quota_warning: { inApp: true, emailDigest: false },
   follow_up_due: { inApp: true, emailDigest: false },
+  webhook_disabled: { inApp: true, emailDigest: false },
 };
 
 export interface NotificationSummary {

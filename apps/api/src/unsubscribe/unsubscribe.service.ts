@@ -7,6 +7,7 @@ import { SuppressionsRepository } from '../database/suppressions.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import type { EmailMessageRow } from '../database/rows';
 import { withTransaction } from '../database/transaction.util';
+import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
 
 @Injectable()
 export class UnsubscribeService {
@@ -16,6 +17,7 @@ export class UnsubscribeService {
     private readonly trackingEventsRepository: TrackingEventsRepository,
     private readonly suppressionsRepository: SuppressionsRepository,
     private readonly auditLogsRepository: AuditLogsRepository,
+    private readonly webhookDispatchService?: WebhookDispatchService,
   ) {}
 
   async findMessageByToken(token: string): Promise<EmailMessageRow | null> {
@@ -35,6 +37,7 @@ export class UnsubscribeService {
     if (!message) {
       return null;
     }
+    const wasAlreadyUnsubscribed = message.unsubscribed_at !== null;
 
     const occurredAt = new Date();
     await withTransaction(this.pool, async (client) => {
@@ -85,6 +88,16 @@ export class UnsubscribeService {
         client,
       );
     });
+
+    // Idempotent: a repeat one-click POST (or a second confirm-page submit)
+    // must not re-fire the webhook event for an address that was already
+    // unsubscribed before this call.
+    if (!wasAlreadyUnsubscribed) {
+      await this.webhookDispatchService?.dispatch('unsubscribed', {
+        messageId: message.id,
+        toEmail: message.to_email,
+      });
+    }
 
     return { email: message.to_email };
   }

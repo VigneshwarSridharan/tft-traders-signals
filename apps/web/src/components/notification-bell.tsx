@@ -13,6 +13,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   send_failed: "Send failed",
   quota_warning: "Quota warning",
   follow_up_due: "Follow-up due",
+  webhook_disabled: "Webhook disabled",
 };
 
 export function NotificationBell() {

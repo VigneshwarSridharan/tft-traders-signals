@@ -257,7 +257,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** exported Excel matches on-screen data; PDF renders charts
   correctly.
 
-### ⬜ Task 23 — Public REST API & outbound webhooks (L)
+### ✅ Task 23 — Public REST API & outbound webhooks (L)
 **Depends on:** 13, 19
 - API keys (scoped, hashed, revocable) + token auth; endpoints: send email,
   CRUD templates/customers, message status, analytics; OpenAPI spec + docs

@@ -9,6 +9,7 @@ import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import { withTransaction } from '../database/transaction.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
 import {
   evaluateClickBotSignals,
   isScannerUserAgent,
@@ -40,6 +41,7 @@ export class TrackingEventProcessorService {
     private readonly geoLookupService: GeoLookupService,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly notificationsService: NotificationsService,
+    private readonly webhookDispatchService?: WebhookDispatchService,
   ) {}
 
   async processJob(job: Job<TrackingJobData>): Promise<void> {
@@ -105,6 +107,15 @@ export class TrackingEventProcessorService {
         type: 'first_open',
         title: `${describeRecipient(message)} opened "${message.subject ?? '(no subject)'}"`,
         messageId: message.id,
+      });
+    }
+    // Webhook subscribers want every open, not just the first (unlike the
+    // in-app "first open" notification above).
+    if (!isBot) {
+      await this.webhookDispatchService?.dispatch('opened', {
+        messageId: message.id,
+        toEmail: message.to_email,
+        occurredAt: occurredAt.toISOString(),
       });
     }
   }
@@ -211,6 +222,12 @@ export class TrackingEventProcessorService {
         type: 'click',
         title: `${describeRecipient(message)} clicked a link in "${message.subject ?? '(no subject)'}"`,
         messageId: message.id,
+      });
+      await this.webhookDispatchService?.dispatch('clicked', {
+        messageId: message.id,
+        toEmail: message.to_email,
+        linkId: data.linkId,
+        occurredAt: occurredAt.toISOString(),
       });
     }
   }

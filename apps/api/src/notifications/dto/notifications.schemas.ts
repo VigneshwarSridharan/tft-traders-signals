@@ -20,6 +20,7 @@ export const updateNotificationPreferencesSchema = z.object({
   bounce: channelPrefsSchema.optional(),
   send_failed: channelPrefsSchema.optional(),
   quota_warning: channelPrefsSchema.optional(),
+  webhook_disabled: channelPrefsSchema.optional(),
 });
 export type UpdateNotificationPreferencesDto = z.infer<
   typeof updateNotificationPreferencesSchema

@@ -28,6 +28,9 @@ import { SettingsModule } from './settings/settings.module';
 import { UnsubscribeModule } from './unsubscribe/unsubscribe.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { ReportsModule } from './reports/reports.module';
+import { ApiKeysModule } from './api-keys/api-keys.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { PublicApiModule } from './public-api/public-api.module';
 
 @Module({
   imports: [
@@ -60,6 +63,9 @@ import { ReportsModule } from './reports/reports.module';
     UnsubscribeModule,
     ComplianceModule,
     ReportsModule,
+    ApiKeysModule,
+    WebhooksModule,
+    PublicApiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

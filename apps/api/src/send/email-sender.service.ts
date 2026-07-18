@@ -9,6 +9,7 @@ import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
 import type { SendJobData } from './send-queue.service';
 
 const QUOTA_RETRY_DELAY_MS = 5 * 60 * 1000;
@@ -41,6 +42,7 @@ export class EmailSenderService {
     private readonly senderAccountsRepository: SenderAccountsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly notificationsService: NotificationsService,
+    private readonly webhookDispatchService?: WebhookDispatchService,
   ) {}
 
   async processSendJob(job: Job<SendJobData>, token?: string): Promise<void> {
@@ -152,6 +154,11 @@ export class EmailSenderService {
         String(info.response ?? '250 OK'),
         new Date(),
       );
+      await this.webhookDispatchService?.dispatch('sent', {
+        messageId: message.id,
+        toEmail: message.to_email,
+        subject: message.subject,
+      });
     } catch (error) {
       const isFinalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
       if (isFinalAttempt) {

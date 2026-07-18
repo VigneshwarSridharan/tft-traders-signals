@@ -14,6 +14,7 @@ import { SuppressionsRepository } from '../database/suppressions.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
 import { NotificationsService } from '../notifications/notifications.service';
+import { WebhookDispatchService } from '../webhooks/webhook-dispatch.service';
 import { parseDsn } from './dsn-parser.util';
 
 function describeRecipient(message: {
@@ -40,6 +41,7 @@ export class InboundSyncService {
     private readonly trackingEventsRepository: TrackingEventsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly notificationsService: NotificationsService,
+    private readonly webhookDispatchService?: WebhookDispatchService,
   ) {}
 
   async syncAllAccounts(): Promise<void> {
@@ -233,6 +235,15 @@ export class InboundSyncService {
             messageId: bounceMatchedMessage.id,
           }),
         );
+        pendingNotifications.push(
+          () =>
+            this.webhookDispatchService?.dispatch('bounced', {
+              messageId: bounceMatchedMessage.id,
+              toEmail: bounceMatchedMessage.to_email,
+              bounceClass: dsn.bounceClass,
+              diagnostic: dsn.diagnostic,
+            }) ?? Promise.resolve(),
+        );
       }
 
       // Only the first reply on a thread emits an event/timestamp — later
@@ -276,6 +287,14 @@ export class InboundSyncService {
             title: `${describeRecipient(repliedMessage)} replied to "${repliedMessage.subject ?? '(no subject)'}"`,
             messageId: repliedMessage.id,
           }),
+        );
+        pendingNotifications.push(
+          () =>
+            this.webhookDispatchService?.dispatch('replied', {
+              messageId: repliedMessage.id,
+              toEmail: repliedMessage.to_email,
+              repliedAt: repliedAt.toISOString(),
+            }) ?? Promise.resolve(),
         );
       }
     });

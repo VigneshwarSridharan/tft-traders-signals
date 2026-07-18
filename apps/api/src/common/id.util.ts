@@ -27,3 +27,13 @@ export function generatePublicToken(): string {
 export function generateMessageIdHeader(domain: string): string {
   return `<${randomUUID()}@${domain}>`;
 }
+
+/** 256-bit random public API key secret, e.g. `sk_live_ABC123...` — shown once at creation. */
+export function generateApiKeySecret(): string {
+  return `sk_live_${toBase62(randomBytes(32))}`;
+}
+
+/** 256-bit random webhook signing secret, e.g. `whsec_ABC123...` — used as the HMAC key. */
+export function generateWebhookSecret(): string {
+  return `whsec_${toBase62(randomBytes(32))}`;
+}
