@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Pool } from 'pg';
-import type { UserRole } from '@tft/shared';
+import type { NotificationPreferences, UserRole } from '@tft/shared';
 import { PG_POOL } from './database.constants';
 import type { UserRow } from './rows';
 
@@ -63,6 +63,17 @@ export class UsersRepository {
        WHERE id = $1
        RETURNING *`,
       [id, patch.name ?? null, patch.role ?? null, patch.isActive ?? null],
+    );
+    return rows[0] ?? null;
+  }
+
+  async updateNotificationPrefs(
+    id: string,
+    prefs: NotificationPreferences,
+  ): Promise<UserRow | null> {
+    const { rows } = await this.pool.query<UserRow>(
+      `UPDATE users SET notification_prefs = $2 WHERE id = $1 RETURNING *`,
+      [id, JSON.stringify(prefs)],
     );
     return rows[0] ?? null;
   }

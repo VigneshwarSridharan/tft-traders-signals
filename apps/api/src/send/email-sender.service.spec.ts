@@ -7,6 +7,7 @@ import { SenderAccountsRepository } from '../database/sender-accounts.repository
 import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
 import type { EnvConfig } from '../config/env.validation';
 import { encryptSecret } from '../common/crypto.util';
+import { NotificationsService } from '../notifications/notifications.service';
 
 jest.mock('nodemailer');
 
@@ -90,6 +91,7 @@ describe('EmailSenderService', () => {
   let emailMessagesRepository: jest.Mocked<EmailMessagesRepository>;
   let senderAccountsRepository: jest.Mocked<SenderAccountsRepository>;
   let configService: ConfigService<EnvConfig, true>;
+  let notificationsService: jest.Mocked<NotificationsService>;
   let sendMail: jest.Mock;
 
   beforeEach(() => {
@@ -117,10 +119,16 @@ describe('EmailSenderService', () => {
       close: jest.fn(),
     });
 
+    notificationsService = {
+      notify: jest.fn().mockResolvedValue(undefined),
+      notifyAdmins: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<NotificationsService>;
+
     service = new EmailSenderService(
       emailMessagesRepository,
       senderAccountsRepository,
       configService,
+      notificationsService,
     );
   });
 
@@ -233,6 +241,44 @@ describe('EmailSenderService', () => {
       'Invalid recipient',
     );
     expect(emailMessagesRepository.markQueued).not.toHaveBeenCalled();
+    expect(notificationsService.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'send_failed',
+        messageId: 'message-1',
+      }),
+    );
+  });
+
+  it('notifies admins once usage crosses the quota warning threshold', async () => {
+    senderAccountsRepository.findById.mockResolvedValue(
+      buildSenderAccountRow({ daily_quota: 10 }),
+    );
+    senderAccountsRepository.getUsage.mockResolvedValue({
+      dailyUsed: 9,
+      hourlyUsed: 0,
+    });
+
+    await service.processSendJob(buildJob() as never, 'token-1');
+
+    expect(notificationsService.notifyAdmins).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'quota_warning' }),
+    );
+  });
+
+  it('does not warn again for the same account within the cooldown window', async () => {
+    senderAccountsRepository.findById.mockResolvedValue(
+      buildSenderAccountRow({ daily_quota: 10 }),
+    );
+    senderAccountsRepository.getUsage.mockResolvedValue({
+      dailyUsed: 9,
+      hourlyUsed: 0,
+    });
+
+    await service.processSendJob(buildJob() as never, 'token-1');
+    await service.processSendJob(buildJob() as never, 'token-1');
+
+    expect(notificationsService.notifyAdmins).toHaveBeenCalledTimes(1);
   });
 
   describe('sendNow', () => {

@@ -22,6 +22,7 @@ function buildUser(overrides: Partial<UserRow> = {}): UserRow {
     is_active: true,
     last_login_at: null,
     theme: 'system',
+    notification_prefs: {},
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,

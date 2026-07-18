@@ -21,3 +21,4 @@ export * from "./suppression";
 export * from "./scheduled-send";
 export * from "./analytics";
 export * from "./realtime-event";
+export * from "./notification";

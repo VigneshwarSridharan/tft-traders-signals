@@ -21,6 +21,7 @@ import { SentMailModule } from './sent-mail/sent-mail.module';
 import { ScheduledSendsModule } from './scheduled-sends/scheduled-sends.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     ScheduledSendsModule,
     AnalyticsModule,
     RealtimeModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

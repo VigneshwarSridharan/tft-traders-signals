@@ -30,3 +30,6 @@ coverage/
 
 # docker
 docker/data/
+
+# local redis snapshot (created by running redis-server locally in dev)
+dump.rdb

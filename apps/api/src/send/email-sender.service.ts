@@ -7,10 +7,15 @@ import type { EnvConfig } from '../config/env.validation';
 import { decryptSecret } from '../common/crypto.util';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
-import type { SenderAccountRow } from '../database/rows';
+import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { SendJobData } from './send-queue.service';
 
 const QUOTA_RETRY_DELAY_MS = 5 * 60 * 1000;
+// Notify admins once a sender account crosses this fraction of a quota,
+// ahead of it actually being exceeded and blocking sends.
+const QUOTA_WARNING_THRESHOLD = 0.9;
+const QUOTA_WARNING_COOLDOWN_MS = 60 * 60 * 1000;
 
 function toErrorMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -19,14 +24,23 @@ function toErrorMessage(error: unknown): string {
   return 'Unknown send error';
 }
 
+function describeRecipient(message: {
+  to_name: string | null;
+  to_email: string;
+}): string {
+  return message.to_name ?? message.to_email;
+}
+
 @Injectable()
 export class EmailSenderService {
   private readonly logger = new Logger(EmailSenderService.name);
+  private readonly quotaWarningLastSentAt = new Map<string, number>();
 
   constructor(
     private readonly emailMessagesRepository: EmailMessagesRepository,
     private readonly senderAccountsRepository: SenderAccountsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async processSendJob(job: Job<SendJobData>, token?: string): Promise<void> {
@@ -53,13 +67,13 @@ export class EmailSenderService {
         messageId,
         'Sender account no longer exists',
       );
+      await this.notifySendFailed(message, 'Sender account no longer exists');
       return;
     }
     if (senderAccount.status !== 'active') {
-      await this.emailMessagesRepository.markFailed(
-        messageId,
-        `Sender account is ${senderAccount.status}`,
-      );
+      const reason = `Sender account is ${senderAccount.status}`;
+      await this.emailMessagesRepository.markFailed(messageId, reason);
+      await this.notifySendFailed(message, reason);
       return;
     }
 
@@ -79,6 +93,7 @@ export class EmailSenderService {
       }
       throw new Error('Sender account quota exceeded');
     }
+    await this.warnIfNearQuota(senderAccount, usage);
 
     await this.emailMessagesRepository.markSending(messageId);
 
@@ -128,10 +143,9 @@ export class EmailSenderService {
     } catch (error) {
       const isFinalAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
       if (isFinalAttempt) {
-        await this.emailMessagesRepository.markFailed(
-          messageId,
-          toErrorMessage(error),
-        );
+        const errorMessage = toErrorMessage(error);
+        await this.emailMessagesRepository.markFailed(messageId, errorMessage);
+        await this.notifySendFailed(message, errorMessage);
       } else {
         await this.emailMessagesRepository.markQueued(messageId);
       }
@@ -139,6 +153,47 @@ export class EmailSenderService {
     } finally {
       transporter.close();
     }
+  }
+
+  private async notifySendFailed(
+    message: EmailMessageRow,
+    reason: string,
+  ): Promise<void> {
+    await this.notificationsService.notify({
+      userId: message.sent_by,
+      type: 'send_failed',
+      title: `Failed to send "${message.subject ?? '(no subject)'}" to ${describeRecipient(message)}`,
+      body: reason,
+      messageId: message.id,
+    });
+  }
+
+  private async warnIfNearQuota(
+    senderAccount: SenderAccountRow,
+    usage: { dailyUsed: number; hourlyUsed: number },
+  ): Promise<void> {
+    const nearingDaily =
+      senderAccount.daily_quota !== null &&
+      usage.dailyUsed / senderAccount.daily_quota >= QUOTA_WARNING_THRESHOLD;
+    const nearingHourly =
+      senderAccount.hourly_quota !== null &&
+      usage.hourlyUsed / senderAccount.hourly_quota >= QUOTA_WARNING_THRESHOLD;
+    if (!nearingDaily && !nearingHourly) {
+      return;
+    }
+
+    const lastSentAt = this.quotaWarningLastSentAt.get(senderAccount.id);
+    if (lastSentAt && Date.now() - lastSentAt < QUOTA_WARNING_COOLDOWN_MS) {
+      return;
+    }
+    this.quotaWarningLastSentAt.set(senderAccount.id, Date.now());
+
+    const period = nearingDaily ? 'daily' : 'hourly';
+    await this.notificationsService.notifyAdmins({
+      type: 'quota_warning',
+      title: `Sender account ${senderAccount.email} is nearing its ${period} send quota`,
+      body: `Daily: ${usage.dailyUsed}/${senderAccount.daily_quota ?? '∞'}, Hourly: ${usage.hourlyUsed}/${senderAccount.hourly_quota ?? '∞'}`,
+    });
   }
 
   async sendNow(params: {

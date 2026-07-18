@@ -198,7 +198,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** with the dashboard open, opening a tracked email shows the event
   without refresh in <5 s.
 
-### ⬜ Task 17 — Notification center (M)
+### ✅ Task 17 — Notification center (M)
 **Depends on:** 16
 - In-app notification inbox (`notifications` table) + per-user preferences
   (which events, in-app vs email digest); events: first open, click, reply,
