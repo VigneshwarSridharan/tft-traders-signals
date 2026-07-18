@@ -19,6 +19,8 @@ import {
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { RequireRole } from "@/components/require-role";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+
 const INPUT_CLASS =
   "w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:text-zinc-50";
 
@@ -28,6 +30,25 @@ const CARD_CLASS =
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type Preset = "7" | "30" | "90" | "custom";
+
+type AnalyticsExportView =
+  | "kpis"
+  | "timeseries"
+  | "templates"
+  | "accounts"
+  | "emails"
+  | "links"
+  | "customers";
+
+const EXPORT_VIEW_OPTIONS: { value: AnalyticsExportView; label: string }[] = [
+  { value: "kpis", label: "KPIs" },
+  { value: "timeseries", label: "Activity over time" },
+  { value: "templates", label: "Top templates" },
+  { value: "accounts", label: "Top sender accounts" },
+  { value: "emails", label: "Top emails" },
+  { value: "links", label: "Top links" },
+  { value: "customers", label: "Top customers" },
+];
 
 function isoDateNDaysAgo(n: number): string {
   const d = new Date();
@@ -161,6 +182,7 @@ function AnalyticsPageContent() {
   const [senderAccountId, setSenderAccountId] = useState("");
   const [templateId, setTemplateId] = useState("");
   const [grain, setGrain] = useState<AnalyticsTimeseriesGrain>("day");
+  const [exportView, setExportView] = useState<AnalyticsExportView>("kpis");
 
   const [senderAccounts, setSenderAccounts] = useState<
     ComposeSenderAccountOption[]
@@ -276,16 +298,75 @@ function AnalyticsPageContent() {
     void load();
   }, [load]);
 
+  const baseFilterParams = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set("dateFrom", dateFrom);
+    params.set("dateTo", dateTo);
+    if (senderAccountId) params.set("senderAccountId", senderAccountId);
+    if (templateId) params.set("templateId", templateId);
+    return params;
+  }, [dateFrom, dateTo, senderAccountId, templateId]);
+
+  const analyticsExportUrl = useCallback(
+    (format: "csv" | "xlsx") => {
+      const params = baseFilterParams();
+      params.set("view", exportView);
+      params.set("format", format);
+      return `${API_URL}/reports/analytics/export?${params.toString()}`;
+    },
+    [baseFilterParams, exportView],
+  );
+
+  const analyticsPdfUrl = useCallback(() => {
+    const params = baseFilterParams();
+    return `${API_URL}/reports/analytics/pdf?${params.toString()}`;
+  }, [baseFilterParams]);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          Analytics
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Engagement KPIs, activity over time, leaderboards, and the best time
-          to send.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Analytics
+          </h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Engagement KPIs, activity over time, leaderboards, and the best
+            time to send.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={exportView}
+            onChange={(e) =>
+              setExportView(e.target.value as AnalyticsExportView)
+            }
+            className={INPUT_CLASS}
+          >
+            {EXPORT_VIEW_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <a
+            href={analyticsExportUrl("csv")}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Export CSV
+          </a>
+          <a
+            href={analyticsExportUrl("xlsx")}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Export Excel
+          </a>
+          <a
+            href={analyticsPdfUrl()}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Download PDF report
+          </a>
+        </div>
       </div>
 
       {loadError && (

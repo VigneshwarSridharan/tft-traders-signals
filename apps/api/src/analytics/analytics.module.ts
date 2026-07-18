@@ -9,6 +9,6 @@ import { StatsRollupService } from './stats-rollup.service';
   imports: [AuthModule],
   controllers: [AnalyticsController],
   providers: [AnalyticsService, StatsRollupService, StatsRollupQueueService],
-  exports: [StatsRollupService],
+  exports: [StatsRollupService, AnalyticsService],
 })
 export class AnalyticsModule {}

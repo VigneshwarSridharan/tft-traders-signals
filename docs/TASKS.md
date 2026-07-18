@@ -250,7 +250,7 @@ platform and sees opens, clicks, and bounces per message.
 - **Accept:** unsubscribe click blocks future sends immediately; erasure
   removes all PII for a customer while keeping aggregate stats consistent.
 
-### ⬜ Task 22 — Exports & reports (M)
+### ✅ Task 22 — Exports & reports (M)
 **Depends on:** 14
 - CSV/Excel export for sent-mail list and all analytics views; PDF report
   (period summary with charts); export actions audit-logged.

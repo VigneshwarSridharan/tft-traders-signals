@@ -419,4 +419,43 @@ describe('RBAC & multi-user hardening (e2e)', () => {
       }
     });
   });
+
+  describe('reports: exports mirror the underlying resource permissions', () => {
+    it('sent-mail export is open to every authenticated role, like the list endpoint', async () => {
+      for (const cookies of [admin, manager, agentA.cookies, viewer]) {
+        await request(app.getHttpServer())
+          .get('/reports/sent-mail/export?format=csv')
+          .set('Cookie', cookies)
+          .expect(200);
+      }
+    });
+
+    it.each(['/reports/analytics/export?view=kpis', '/reports/analytics/pdf'])(
+      'agent is rejected from %s',
+      async (path) => {
+        await request(app.getHttpServer())
+          .get(path)
+          .set('Cookie', agentA.cookies)
+          .expect(403);
+      },
+    );
+
+    it('admin, manager, and viewer can export analytics as CSV, Excel, and PDF', async () => {
+      for (const cookies of [admin, manager, viewer]) {
+        await request(app.getHttpServer())
+          .get('/reports/analytics/export?view=kpis&format=csv')
+          .set('Cookie', cookies)
+          .expect(200);
+        await request(app.getHttpServer())
+          .get('/reports/analytics/export?view=templates&format=xlsx')
+          .set('Cookie', cookies)
+          .expect(200);
+        await request(app.getHttpServer())
+          .get('/reports/analytics/pdf')
+          .set('Cookie', cookies)
+          .expect(200)
+          .expect('Content-Type', /application\/pdf/);
+      }
+    });
+  });
 });

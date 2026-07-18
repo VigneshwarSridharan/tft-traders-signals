@@ -1,3 +1,7 @@
+import { toCsvRow } from '../common/csv.util';
+
+export { toCsvRow };
+
 export interface ParsedCsv {
   headers: string[];
   rows: string[][];
@@ -67,15 +71,4 @@ export function parseCsv(input: string): ParsedCsv {
     headers: (headerRow ?? []).map((header) => header.trim().toLowerCase()),
     rows: dataRows,
   };
-}
-
-function toCsvField(value: string): string {
-  if (/["\n,]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
-export function toCsvRow(values: string[]): string {
-  return values.map(toCsvField).join(',');
 }
