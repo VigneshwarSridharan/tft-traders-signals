@@ -220,13 +220,16 @@ platform and sees opens, clicks, and bounces per message.
 
 ## Phase 3 — Platform hardening & compliance
 
-### ⬜ Task 19 — RBAC & multi-user hardening (M)
+### ✅ Task 19 — RBAC & multi-user hardening (M)
 **Depends on:** 3 (+ all feature endpoints)
 - Enforce the four roles across every endpoint and UI surface per PRD §1.5
   (agents see only their own sends; viewers read-only; permission matrix
   documented + tested).
 - **Accept:** endpoint-level permission test matrix passes; UI hides what the
   role can't do.
+- See [PERMISSIONS.md](./PERMISSIONS.md) for the full matrix, the ownership-
+  scoping design, and the documented limitation on agent-scoped aggregate
+  analytics (daily_stats has no per-user dimension yet).
 
 ### ⬜ Task 20 — Audit logging (S)
 **Depends on:** 19

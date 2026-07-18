@@ -19,6 +19,7 @@ import type {
   FollowUpDraftResponse,
 } from '@tft/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
@@ -37,23 +38,29 @@ export class EmailMessagesController {
   constructor(private readonly emailMessagesService: EmailMessagesService) {}
 
   @Get('sender-accounts')
+  @Roles('admin', 'manager', 'agent')
   listSenderAccounts(): Promise<ComposeSenderAccountOption[]> {
     return this.emailMessagesService.listSenderAccountOptions();
   }
 
   @Get(':id')
-  get(@Param('id', ParseUUIDPipe) id: string): Promise<EmailMessageSummary> {
-    return this.emailMessagesService.get(id);
+  get(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AccessTokenPayload,
+  ): Promise<EmailMessageSummary> {
+    return this.emailMessagesService.get(id, user.sub, user.role);
   }
 
   @Get(':id/follow-up-draft')
   getFollowUpDraft(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AccessTokenPayload,
   ): Promise<FollowUpDraftResponse> {
-    return this.emailMessagesService.getFollowUpDraft(id);
+    return this.emailMessagesService.getFollowUpDraft(id, user.sub, user.role);
   }
 
   @Post('compose')
+  @Roles('admin', 'manager', 'agent')
   @UseInterceptors(
     FilesInterceptor('attachments', 10, {
       storage: memoryStorage(),
@@ -75,6 +82,7 @@ export class EmailMessagesController {
   }
 
   @Post('test-send')
+  @Roles('admin', 'manager', 'agent')
   testSend(
     @Body(new ZodValidationPipe(composeTestSendSchema))
     body: ComposeTestSendDto,

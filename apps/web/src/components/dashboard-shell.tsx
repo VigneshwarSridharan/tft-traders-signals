@@ -3,39 +3,61 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
+import type { UserRole } from "@tft/shared";
 import { useAuth } from "@/lib/auth-context";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/analytics", label: "Analytics" },
-  { href: "/dashboard/compose", label: "Compose" },
-  { href: "/dashboard/sent-mail", label: "Sent Mail" },
-  { href: "/dashboard/scheduled", label: "Scheduled" },
-  { href: "/dashboard/customers", label: "Customers" },
-  { href: "/dashboard/templates", label: "Templates" },
-  { href: "/dashboard/notifications", label: "Notifications" },
-  { href: "/dashboard/users", label: "Users", adminOnly: true },
+const ALL_ROLES: UserRole[] = ["admin", "manager", "agent", "viewer"];
+
+/**
+ * `roles` mirrors the server-side permission matrix in docs/PERMISSIONS.md —
+ * keep the two in sync when either changes. Analytics excludes agent (the
+ * org-wide dashboard has no per-user dimension; agents get their own
+ * numbers via Sent Mail instead). Compose/Scheduled exclude viewer (they
+ * can't send).
+ */
+const NAV_ITEMS: { href: string; label: string; roles: UserRole[] }[] = [
+  { href: "/dashboard", label: "Overview", roles: ALL_ROLES },
+  {
+    href: "/dashboard/analytics",
+    label: "Analytics",
+    roles: ["admin", "manager", "viewer"],
+  },
+  {
+    href: "/dashboard/compose",
+    label: "Compose",
+    roles: ["admin", "manager", "agent"],
+  },
+  { href: "/dashboard/sent-mail", label: "Sent Mail", roles: ALL_ROLES },
+  {
+    href: "/dashboard/scheduled",
+    label: "Scheduled",
+    roles: ["admin", "manager", "agent"],
+  },
+  { href: "/dashboard/customers", label: "Customers", roles: ALL_ROLES },
+  { href: "/dashboard/templates", label: "Templates", roles: ALL_ROLES },
+  { href: "/dashboard/notifications", label: "Notifications", roles: ALL_ROLES },
+  { href: "/dashboard/users", label: "Users", roles: ["admin"] },
   {
     href: "/dashboard/sender-accounts",
     label: "Sender Accounts",
-    adminOnly: true,
+    roles: ["admin"],
   },
   {
     href: "/dashboard/custom-fields",
     label: "Custom Fields",
-    adminOnly: true,
+    roles: ["admin"],
   },
   {
     href: "/dashboard/template-categories",
     label: "Template Categories",
-    adminOnly: true,
+    roles: ["admin"],
   },
   {
     href: "/dashboard/suppressions",
     label: "Suppressions",
-    adminOnly: true,
+    roles: ["admin"],
   },
 ];
 
@@ -62,8 +84,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     return null;
   }
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => !item.adminOnly || user.role === "admin",
+  const visibleItems = NAV_ITEMS.filter((item) =>
+    item.roles.includes(user.role),
   );
 
   return (

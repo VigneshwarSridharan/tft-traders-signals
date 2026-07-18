@@ -9,6 +9,7 @@ import type {
   TopEmailsResponse,
   TopLinksResponse,
 } from '@tft/shared';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -24,8 +25,16 @@ import {
   type AnalyticsTimeseriesQueryDto,
 } from './dto/analytics.schemas';
 
+/**
+ * Org-wide analytics come from the daily_stats rollup, which aggregates
+ * across all users (day × sender account × template — no per-user
+ * dimension), so it can't be scoped to "my sends only". Agents get their
+ * own send/open/click/bounce numbers per-message via the sent-mail list
+ * instead (see SentMailController), which is ownership-filtered.
+ */
 @Controller('analytics')
 @UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('admin', 'manager', 'viewer')
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 

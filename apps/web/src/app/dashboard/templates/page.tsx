@@ -22,6 +22,7 @@ import type {
 } from "@tft/shared";
 import { TEMPLATE_STATUSES } from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import {
   RichTextEditor,
   type RichTextEditorHandle,
@@ -38,6 +39,8 @@ const EMPTY_FORM = {
 };
 
 export default function TemplatesPage() {
+  const { user } = useAuth();
+  const canManage = user?.role === "admin" || user?.role === "manager";
   const [categories, setCategories] = useState<TemplateCategorySummary[]>([]);
   const [mergeFields, setMergeFields] = useState<MergeFieldOption[]>([]);
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
@@ -313,6 +316,7 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-8">
+      {canManage && (
       <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
@@ -509,6 +513,7 @@ export default function TemplatesPage() {
           </div>
         )}
       </section>
+      )}
 
       {loadError && (
         <p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
@@ -587,28 +592,33 @@ export default function TemplatesPage() {
                     <td className="px-3 py-2">{template.name}</td>
                     <td className="px-3 py-2">{template.categoryName}</td>
                     <td className="px-3 py-2">
-                      <select
-                        value={template.status}
-                        onChange={(e) =>
-                          void changeStatus(
-                            template,
-                            e.target.value as TemplateStatus,
-                          )
-                        }
-                        className="rounded-md border border-zinc-300 bg-transparent px-1 py-0.5 text-xs dark:border-zinc-700"
-                      >
-                        {TEMPLATE_STATUSES.map((status) => (
-                          <option key={status} value={status}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
+                      {canManage ? (
+                        <select
+                          value={template.status}
+                          onChange={(e) =>
+                            void changeStatus(
+                              template,
+                              e.target.value as TemplateStatus,
+                            )
+                          }
+                          className="rounded-md border border-zinc-300 bg-transparent px-1 py-0.5 text-xs dark:border-zinc-700"
+                        >
+                          {TEMPLATE_STATUSES.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        template.status
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       v{template.currentVersion?.versionNo ?? "—"}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <div className="flex flex-wrap justify-end gap-3">
+                        {canManage && (
                         <button
                           type="button"
                           onClick={() => startEdit(template)}
@@ -616,6 +626,8 @@ export default function TemplatesPage() {
                         >
                           Edit
                         </button>
+                        )}
+                        {canManage && (
                         <button
                           type="button"
                           onClick={() => void duplicateTemplate(template)}
@@ -623,6 +635,7 @@ export default function TemplatesPage() {
                         >
                           Duplicate
                         </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => void toggleVersions(template)}
@@ -630,6 +643,7 @@ export default function TemplatesPage() {
                         >
                           History
                         </button>
+                        {canManage && (
                         <button
                           type="button"
                           onClick={() => {
@@ -642,6 +656,8 @@ export default function TemplatesPage() {
                         >
                           Test-send
                         </button>
+                        )}
+                        {canManage && (
                         <button
                           type="button"
                           onClick={() => void deleteTemplate(template)}
@@ -649,6 +665,7 @@ export default function TemplatesPage() {
                         >
                           Delete
                         </button>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { TagSummary } from '@tft/shared';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -34,6 +35,7 @@ export class TagsController {
   }
 
   @Post()
+  @Roles('admin', 'manager')
   create(
     @Body(new ZodValidationPipe(createTagSchema)) body: CreateTagDto,
   ): Promise<TagSummary> {
@@ -41,6 +43,7 @@ export class TagsController {
   }
 
   @Patch(':id')
+  @Roles('admin', 'manager')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateTagSchema)) body: UpdateTagDto,
@@ -49,6 +52,7 @@ export class TagsController {
   }
 
   @Delete(':id')
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.tagsService.delete(id);

@@ -474,9 +474,9 @@ describe('EmailMessagesService', () => {
     it('throws when the message does not exist', async () => {
       emailMessagesRepository.findById.mockResolvedValue(null);
 
-      await expect(service.getFollowUpDraft('missing')).rejects.toThrow(
-        'Message not found',
-      );
+      await expect(
+        service.getFollowUpDraft('missing', 'user-1', 'admin'),
+      ).rejects.toThrow('Message not found');
     });
 
     it('prefills the same customer, sender account, and a "Re:" subject, using the Follow-up category default template when set', async () => {
@@ -496,7 +496,11 @@ describe('EmailMessagesService', () => {
         updated_at: new Date(),
       });
 
-      const draft = await service.getFollowUpDraft('parent-1');
+      const draft = await service.getFollowUpDraft(
+        'parent-1',
+        'user-1',
+        'admin',
+      );
 
       expect(draft).toEqual({
         parentMessageId: 'parent-1',
@@ -514,7 +518,11 @@ describe('EmailMessagesService', () => {
       );
       templateCategoriesRepository.findByName.mockResolvedValue(null);
 
-      const draft = await service.getFollowUpDraft('parent-1');
+      const draft = await service.getFollowUpDraft(
+        'parent-1',
+        'user-1',
+        'admin',
+      );
 
       expect(draft.categoryId).toBeNull();
       expect(draft.templateId).toBeNull();

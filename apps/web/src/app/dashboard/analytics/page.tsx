@@ -17,6 +17,7 @@ import {
   type TopLinksResponse,
 } from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { RequireRole } from "@/components/require-role";
 
 const INPUT_CLASS =
   "w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:text-zinc-50";
@@ -146,6 +147,14 @@ const KPI_TILES: KpiTileSpec[] = [
 ];
 
 export default function AnalyticsPage() {
+  return (
+    <RequireRole roles={["admin", "manager", "viewer"]}>
+      <AnalyticsPageContent />
+    </RequireRole>
+  );
+}
+
+function AnalyticsPageContent() {
   const [preset, setPreset] = useState<Preset>("30");
   const [dateFrom, setDateFrom] = useState(isoDateNDaysAgo(29));
   const [dateTo, setDateTo] = useState(todayIso());

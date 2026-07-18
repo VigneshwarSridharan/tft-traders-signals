@@ -20,6 +20,7 @@ import type {
   TestSendTemplateResponse,
 } from '@tft/shared';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
@@ -79,6 +80,7 @@ export class TemplatesController {
   }
 
   @Post()
+  @Roles('admin', 'manager')
   create(
     @Body(new ZodValidationPipe(createTemplateSchema)) body: CreateTemplateDto,
     @CurrentUser() user: AccessTokenPayload,
@@ -87,6 +89,7 @@ export class TemplatesController {
   }
 
   @Patch(':id')
+  @Roles('admin', 'manager')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateTemplateSchema)) body: UpdateTemplateDto,
@@ -95,6 +98,7 @@ export class TemplatesController {
   }
 
   @Post(':id/versions')
+  @Roles('admin', 'manager')
   saveVersion(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(saveTemplateVersionSchema))
@@ -105,6 +109,7 @@ export class TemplatesController {
   }
 
   @Post(':id/duplicate')
+  @Roles('admin', 'manager')
   duplicate(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AccessTokenPayload,
@@ -122,6 +127,7 @@ export class TemplatesController {
   }
 
   @Post(':id/test-send')
+  @Roles('admin', 'manager')
   testSend(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(testSendTemplateSchema))
@@ -131,6 +137,7 @@ export class TemplatesController {
   }
 
   @Delete(':id')
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.templatesService.delete(id);

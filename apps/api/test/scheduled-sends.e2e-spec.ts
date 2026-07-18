@@ -28,6 +28,7 @@ describe('Scheduled sends (e2e)', () => {
   let usersRepository: UsersRepository;
   let pool: Pool;
   let inspectionQueue: Queue<SendJobData>;
+  let adminCookies: string[];
   let agentCookies: string[];
   let senderAccount: SenderAccountSummary;
 
@@ -53,7 +54,7 @@ describe('Scheduled sends (e2e)', () => {
   async function createCustomer(): Promise<CustomerSummary> {
     const response = await request(app.getHttpServer())
       .post('/customers')
-      .set('Cookie', agentCookies)
+      .set('Cookie', adminCookies)
       .send({
         name: 'Jane Doe',
         email: `jane-${randomUUID()}@example.com`,
@@ -113,7 +114,7 @@ describe('Scheduled sends (e2e)', () => {
       connection: parseRedisConnectionOptions(process.env.REDIS_URL as string),
     });
 
-    const adminCookies = await loginAsNewUser('admin');
+    adminCookies = await loginAsNewUser('admin');
     agentCookies = await loginAsNewUser('agent');
 
     const senderResponse = await request(app.getHttpServer())

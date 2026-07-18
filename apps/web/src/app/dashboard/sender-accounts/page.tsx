@@ -8,6 +8,7 @@ import type {
 } from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { RequireRole } from "@/components/require-role";
 
 const INPUT_CLASS =
   "w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:text-zinc-50";
@@ -23,6 +24,14 @@ const EMPTY_FORM: CreateSenderAccountRequest = {
 };
 
 export default function SenderAccountsAdminPage() {
+  return (
+    <RequireRole roles={["admin"]}>
+      <SenderAccountsAdminPageContent />
+    </RequireRole>
+  );
+}
+
+function SenderAccountsAdminPageContent() {
   const { user: currentUser } = useAuth();
   const [accounts, setAccounts] = useState<SenderAccountSummary[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
