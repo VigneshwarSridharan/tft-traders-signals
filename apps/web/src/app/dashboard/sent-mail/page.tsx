@@ -15,6 +15,8 @@ import {
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { useRealtimeEvents } from "@/lib/realtime-context";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+
 const INPUT_CLASS =
   "w-full rounded-md border border-zinc-300 bg-transparent px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:text-zinc-50";
 
@@ -62,20 +64,25 @@ export default function SentMailPage() {
     setTags(tagList);
   }, []);
 
+  const buildFilterParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (status) params.set("status", status);
+    if (senderAccountId) params.set("senderAccountId", senderAccountId);
+    if (templateId) params.set("templateId", templateId);
+    if (tagId) params.set("tagId", tagId);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    params.set("sort", sort);
+    params.set("sortDir", sortDir);
+    return params;
+  }, [search, status, senderAccountId, templateId, tagId, dateFrom, dateTo, sort, sortDir]);
+
   const loadMessages = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const params = new URLSearchParams();
-      if (search) params.set("search", search);
-      if (status) params.set("status", status);
-      if (senderAccountId) params.set("senderAccountId", senderAccountId);
-      if (templateId) params.set("templateId", templateId);
-      if (tagId) params.set("tagId", tagId);
-      if (dateFrom) params.set("dateFrom", dateFrom);
-      if (dateTo) params.set("dateTo", dateTo);
-      params.set("sort", sort);
-      params.set("sortDir", sortDir);
+      const params = buildFilterParams();
       params.set("page", String(page));
       params.set("pageSize", String(PAGE_SIZE));
 
@@ -90,18 +97,16 @@ export default function SentMailPage() {
     } finally {
       setLoading(false);
     }
-  }, [
-    search,
-    status,
-    senderAccountId,
-    templateId,
-    tagId,
-    dateFrom,
-    dateTo,
-    sort,
-    sortDir,
-    page,
-  ]);
+  }, [buildFilterParams, page]);
+
+  const exportUrl = useCallback(
+    (format: "csv" | "xlsx") => {
+      const params = buildFilterParams();
+      params.set("format", format);
+      return `${API_URL}/reports/sent-mail/export?${params.toString()}`;
+    },
+    [buildFilterParams],
+  );
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch filter reference data on mount
@@ -148,14 +153,30 @@ export default function SentMailPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          Sent Mail
-        </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Every message sent through the platform, with opens, clicks, and
-          bounces.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Sent Mail
+          </h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            Every message sent through the platform, with opens, clicks, and
+            bounces.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <a
+            href={exportUrl("csv")}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Export CSV
+          </a>
+          <a
+            href={exportUrl("xlsx")}
+            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            Export Excel
+          </a>
+        </div>
       </div>
 
       {loadError && (

@@ -27,6 +27,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
 import { SettingsModule } from './settings/settings.module';
 import { UnsubscribeModule } from './unsubscribe/unsubscribe.module';
 import { ComplianceModule } from './compliance/compliance.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { ComplianceModule } from './compliance/compliance.module';
     SettingsModule,
     UnsubscribeModule,
     ComplianceModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

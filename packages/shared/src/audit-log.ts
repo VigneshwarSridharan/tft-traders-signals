@@ -20,6 +20,7 @@ export const AUDIT_LOG_ACTIONS = [
   "unsubscribe.recorded",
   "settings.update",
   "user.role_change",
+  "report.export",
 ] as const;
 
 export type AuditLogAction = (typeof AUDIT_LOG_ACTIONS)[number];

@@ -7,5 +7,6 @@ import { SentMailService } from './sent-mail.service';
   imports: [AuthModule],
   controllers: [SentMailController],
   providers: [SentMailService],
+  exports: [SentMailService],
 })
 export class SentMailModule {}
