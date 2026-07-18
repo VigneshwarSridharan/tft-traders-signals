@@ -20,7 +20,15 @@ const envSchema = z.object({
   INVITATION_TTL_HOURS: z.coerce.number().int().positive().default(72),
   ATTACHMENT_STORAGE_PATH: z.string().min(1).default('./storage/attachments'),
   SEND_FROM_DOMAIN: z.string().min(1).default('tft-traders-signals.local'),
-  GEOLITE2_CITY_DB_PATH: z.string().min(1).optional(),
+  // Docker's env_file turns `GEOLITE2_CITY_DB_PATH=` (no value) into an
+  // empty string, not an absent var — treat that the same as unset rather
+  // than failing validation, since .env.example documents blank as "leave
+  // unset to disable".
+  GEOLITE2_CITY_DB_PATH: z
+    .string()
+    .min(1)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
   TRACKING_CLICK_BOT_MIN_SECONDS: z.coerce
     .number()
     .int()

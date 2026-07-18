@@ -8,6 +8,16 @@
 
 {$DASHBOARD_HOST:dashboard.localhost} {
 	tls internal
+
+	# Proxy API calls under the dashboard's own origin so the browser sees
+	# them as same-origin, not cross-site. Cookie-based auth otherwise runs
+	# into modern browsers' third-party-cookie blocking (SameSite=None
+	# cookies sent cross-origin get silently dropped/partitioned) — routing
+	# through one origin sidesteps that entirely instead of fighting it.
+	handle_path /api/* {
+		reverse_proxy api:3000
+	}
+
 	reverse_proxy web:3000
 }
 

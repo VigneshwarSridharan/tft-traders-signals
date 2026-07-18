@@ -14,19 +14,54 @@ interface ErrorBody {
   message?: string | string[];
 }
 
+// The access token is short-lived (JWT_ACCESS_TTL, 15m by default); the
+// refresh_token cookie is what actually keeps a session alive across it. On
+// a 401, transparently exchange it for a new access token once and retry —
+// otherwise every user gets logged out ~15 minutes into any session.
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_URL}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+    })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
   const isFormData = init.body instanceof FormData;
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    credentials: "include",
-    headers: {
-      ...(isFormData ? {} : { "Content-Type": "application/json" }),
-      ...init.headers,
-    },
-  });
+  const doFetch = () =>
+    fetch(`${API_URL}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...init.headers,
+      },
+    });
+
+  let response = await doFetch();
+
+  if (
+    response.status === 401 &&
+    path !== "/auth/login" &&
+    path !== "/auth/refresh"
+  ) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      response = await doFetch();
+    }
+  }
 
   if (!response.ok) {
     const body: ErrorBody | null = await response.json().catch(() => null);

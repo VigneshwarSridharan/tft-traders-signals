@@ -10,10 +10,8 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import type { AuthUser } from '@tft/shared';
-import type { EnvConfig } from '../config/env.validation';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { UsersRepository } from '../database/users.repository';
 import { AuthService } from './auth.service';
@@ -45,7 +43,6 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersRepository: UsersRepository,
-    private readonly configService: ConfigService<EnvConfig, true>,
   ) {}
 
   @Post('login')
@@ -60,7 +57,7 @@ export class AuthController {
       body.password,
     );
     const tokens = await this.authService.login(user, requestMeta(req));
-    setAuthCookies(res, this.configService, tokens);
+    setAuthCookies(res, tokens);
     return toAuthUser(user);
   }
 
@@ -80,7 +77,7 @@ export class AuthController {
       refreshToken,
       requestMeta(req),
     );
-    setAuthCookies(res, this.configService, tokens);
+    setAuthCookies(res, tokens);
     return toAuthUser(user);
   }
 
@@ -119,7 +116,7 @@ export class AuthController {
       body.password,
       requestMeta(req),
     );
-    setAuthCookies(res, this.configService, tokens);
+    setAuthCookies(res, tokens);
     return toAuthUser(user);
   }
 }
