@@ -1,4 +1,5 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
 import { ScheduledSendsService } from './scheduled-sends.service';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import {
@@ -68,6 +69,25 @@ function buildScheduledSendRow(
   };
 }
 
+const ADMIN_USER: AccessTokenPayload = {
+  sub: 'admin-1',
+  email: 'admin@example.com',
+  role: 'admin',
+};
+
+/** Matches buildMessageRow()'s default `sent_by`, i.e. the message's own creator. */
+const OWNING_AGENT_USER: AccessTokenPayload = {
+  sub: 'user-1',
+  email: 'agent@example.com',
+  role: 'agent',
+};
+
+const OTHER_AGENT_USER: AccessTokenPayload = {
+  sub: 'user-2',
+  email: 'other-agent@example.com',
+  role: 'agent',
+};
+
 describe('ScheduledSendsService', () => {
   let service: ScheduledSendsService;
   let scheduledSendsRepository: jest.Mocked<ScheduledSendsRepository>;
@@ -114,7 +134,7 @@ describe('ScheduledSendsService', () => {
 
   describe('cancel', () => {
     it('removes the delayed job and marks both rows cancelled', async () => {
-      const result = await service.cancel('message-1');
+      const result = await service.cancel('message-1', ADMIN_USER);
 
       expect(sendQueueService.cancelScheduled).toHaveBeenCalledWith(
         'scheduled-message-1',
@@ -131,9 +151,9 @@ describe('ScheduledSendsService', () => {
     it('throws if there is no scheduled_sends row for the message', async () => {
       scheduledSendsRepository.findByMessageId.mockResolvedValue(null);
 
-      await expect(service.cancel('missing')).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(
+        service.cancel('missing', ADMIN_USER),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('rejects cancelling a message that already left the scheduled state', async () => {
@@ -141,9 +161,21 @@ describe('ScheduledSendsService', () => {
         buildMessageRow({ status: 'sent' }),
       );
 
-      await expect(service.cancel('message-1')).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.cancel('message-1', ADMIN_USER),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(sendQueueService.cancelScheduled).not.toHaveBeenCalled();
+    });
+
+    it('lets an agent cancel their own scheduled send', async () => {
+      const result = await service.cancel('message-1', OWNING_AGENT_USER);
+      expect(result.id).toBe('message-1');
+    });
+
+    it("404s an agent cancelling another agent's scheduled send", async () => {
+      await expect(
+        service.cancel('message-1', OTHER_AGENT_USER),
+      ).rejects.toBeInstanceOf(NotFoundException);
       expect(sendQueueService.cancelScheduled).not.toHaveBeenCalled();
     });
   });
@@ -152,10 +184,11 @@ describe('ScheduledSendsService', () => {
     it('cancels the old job, enqueues a new one, and persists the new schedule', async () => {
       const scheduledFor = new Date(Date.now() + 10 * 60 * 1000);
 
-      await service.reschedule('message-1', {
-        scheduledFor,
-        timezone: 'America/New_York',
-      });
+      await service.reschedule(
+        'message-1',
+        { scheduledFor, timezone: 'America/New_York' },
+        ADMIN_USER,
+      );
 
       expect(sendQueueService.cancelScheduled).toHaveBeenCalledWith(
         'scheduled-message-1',
@@ -178,10 +211,23 @@ describe('ScheduledSendsService', () => {
       );
 
       await expect(
-        service.reschedule('message-1', {
-          scheduledFor: new Date(Date.now() + 60_000),
-        }),
+        service.reschedule(
+          'message-1',
+          { scheduledFor: new Date(Date.now() + 60_000) },
+          ADMIN_USER,
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
+      expect(sendQueueService.enqueueScheduled).not.toHaveBeenCalled();
+    });
+
+    it("404s an agent rescheduling another agent's scheduled send", async () => {
+      await expect(
+        service.reschedule(
+          'message-1',
+          { scheduledFor: new Date(Date.now() + 60_000) },
+          OTHER_AGENT_USER,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
       expect(sendQueueService.enqueueScheduled).not.toHaveBeenCalled();
     });
   });
@@ -205,10 +251,20 @@ describe('ScheduledSendsService', () => {
         total: 1,
       });
 
-      const result = await service.list({ page: 1, pageSize: 25 });
+      const result = await service.list({ page: 1, pageSize: 25 }, ADMIN_USER);
 
       expect(result.total).toBe(1);
       expect(result.items[0].messageId).toBe('message-1');
+    });
+
+    it("scopes an agent's list to their own scheduled sends", async () => {
+      scheduledSendsRepository.list.mockResolvedValue({ rows: [], total: 0 });
+
+      await service.list({ page: 1, pageSize: 25 }, OWNING_AGENT_USER);
+
+      expect(scheduledSendsRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ sentBy: OWNING_AGENT_USER.sub }),
+      );
     });
   });
 });

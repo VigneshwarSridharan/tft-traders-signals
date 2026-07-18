@@ -27,6 +27,8 @@ export interface ScheduledSendListRow {
 export interface ScheduledSendListFilter {
   page: number;
   pageSize: number;
+  /** Restricts results to messages sent by this user — used to scope agents to their own sends. */
+  sentBy?: string;
 }
 
 @Injectable()
@@ -88,12 +90,20 @@ export class ScheduledSendsRepository {
     filter: ScheduledSendListFilter,
   ): Promise<{ rows: ScheduledSendListRow[]; total: number }> {
     const offset = (filter.page - 1) * filter.pageSize;
+    const conditions = [`ss.cancelled_at IS NULL`, `em.status = 'scheduled'`];
+    const params: unknown[] = [];
+    if (filter.sentBy) {
+      params.push(filter.sentBy);
+      conditions.push(`em.sent_by = $${params.length}`);
+    }
+    const whereClause = conditions.join(' AND ');
 
     const countResult = await this.pool.query<{ count: string }>(
       `SELECT count(*)::text AS count
        FROM scheduled_sends ss
        JOIN email_messages em ON em.id = ss.message_id
-       WHERE ss.cancelled_at IS NULL AND em.status = 'scheduled'`,
+       WHERE ${whereClause}`,
+      params,
     );
 
     const { rows } = await this.pool.query<ScheduledSendListRow>(
@@ -110,10 +120,10 @@ export class ScheduledSendsRepository {
          ss.created_at
        FROM scheduled_sends ss
        JOIN email_messages em ON em.id = ss.message_id
-       WHERE ss.cancelled_at IS NULL AND em.status = 'scheduled'
+       WHERE ${whereClause}
        ORDER BY ss.scheduled_for ASC, ss.id ASC
-       LIMIT $1 OFFSET $2`,
-      [filter.pageSize, offset],
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, filter.pageSize, offset],
     );
 
     return { rows, total: Number(countResult.rows[0]?.count ?? '0') };

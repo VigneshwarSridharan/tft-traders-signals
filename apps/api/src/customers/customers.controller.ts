@@ -20,6 +20,7 @@ import type {
   CustomerSummary,
   CustomerTimelineResponse,
 } from '@tft/shared';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -51,6 +52,7 @@ export class CustomersController {
   }
 
   @Get('export')
+  @Roles('admin', 'manager')
   async export(@Res() res: Response): Promise<void> {
     const csv = await this.customersService.exportCsv();
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -74,6 +76,7 @@ export class CustomersController {
   }
 
   @Post()
+  @Roles('admin', 'manager')
   create(
     @Body(new ZodValidationPipe(createCustomerSchema))
     body: CreateCustomerDto,
@@ -82,6 +85,7 @@ export class CustomersController {
   }
 
   @Post('import')
+  @Roles('admin', 'manager')
   importCsv(
     @Body(new ZodValidationPipe(importCustomersSchema))
     body: ImportCustomersDto,
@@ -90,6 +94,7 @@ export class CustomersController {
   }
 
   @Patch(':id')
+  @Roles('admin', 'manager')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateCustomerSchema))
@@ -99,12 +104,14 @@ export class CustomersController {
   }
 
   @Delete(':id')
+  @Roles('admin', 'manager')
   @HttpCode(HttpStatus.NO_CONTENT)
   delete(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.customersService.delete(id);
   }
 
   @Post(':id/tags')
+  @Roles('admin', 'manager')
   addTag(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(assignTagSchema)) body: AssignTagDto,
@@ -113,6 +120,7 @@ export class CustomersController {
   }
 
   @Delete(':id/tags/:tagId')
+  @Roles('admin', 'manager')
   removeTag(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('tagId', ParseUUIDPipe) tagId: string,

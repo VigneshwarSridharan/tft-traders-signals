@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
 import { SentMailService } from './sent-mail.service';
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
@@ -135,6 +136,24 @@ function buildBounceRow(overrides: Partial<BounceRow> = {}): BounceRow {
   };
 }
 
+const ADMIN_USER: AccessTokenPayload = {
+  sub: 'admin-1',
+  email: 'admin@example.com',
+  role: 'admin',
+};
+
+const AGENT_USER: AccessTokenPayload = {
+  sub: 'user-1',
+  email: 'agent@example.com',
+  role: 'agent',
+};
+
+const OTHER_AGENT_USER: AccessTokenPayload = {
+  sub: 'user-2',
+  email: 'other-agent@example.com',
+  role: 'agent',
+};
+
 describe('SentMailService', () => {
   let service: SentMailService;
   let emailMessagesRepository: jest.Mocked<EmailMessagesRepository>;
@@ -208,12 +227,15 @@ describe('SentMailService', () => {
         ]),
       );
 
-      const result = await service.list({
-        sort: 'sentAt',
-        sortDir: 'desc',
-        page: 1,
-        pageSize: 25,
-      });
+      const result = await service.list(
+        {
+          sort: 'sentAt',
+          sortDir: 'desc',
+          page: 1,
+          pageSize: 25,
+        },
+        ADMIN_USER,
+      );
 
       expect(result.total).toBe(1);
       expect(result.items).toHaveLength(1);
@@ -233,15 +255,44 @@ describe('SentMailService', () => {
     it('returns an empty list without querying joins when there are no rows', async () => {
       emailMessagesRepository.list.mockResolvedValue({ rows: [], total: 0 });
 
-      const result = await service.list({
-        sort: 'sentAt',
-        sortDir: 'desc',
-        page: 1,
-        pageSize: 25,
-      });
+      const result = await service.list(
+        {
+          sort: 'sentAt',
+          sortDir: 'desc',
+          page: 1,
+          pageSize: 25,
+        },
+        ADMIN_USER,
+      );
 
       expect(result.items).toEqual([]);
       expect(senderAccountsRepository.list).not.toHaveBeenCalled();
+    });
+
+    it("scopes an agent's list to their own sends", async () => {
+      emailMessagesRepository.list.mockResolvedValue({ rows: [], total: 0 });
+
+      await service.list(
+        { sort: 'sentAt', sortDir: 'desc', page: 1, pageSize: 25 },
+        AGENT_USER,
+      );
+
+      expect(emailMessagesRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ sentBy: AGENT_USER.sub }),
+      );
+    });
+
+    it("does not scope an admin's list by sender", async () => {
+      emailMessagesRepository.list.mockResolvedValue({ rows: [], total: 0 });
+
+      await service.list(
+        { sort: 'sentAt', sortDir: 'desc', page: 1, pageSize: 25 },
+        ADMIN_USER,
+      );
+
+      expect(emailMessagesRepository.list).toHaveBeenCalledWith(
+        expect.objectContaining({ sentBy: undefined }),
+      );
     });
   });
 
@@ -250,7 +301,7 @@ describe('SentMailService', () => {
       emailMessagesRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.get('missing', { includeBotEvents: false }),
+        service.get('missing', { includeBotEvents: false }, ADMIN_USER),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -266,9 +317,11 @@ describe('SentMailService', () => {
         buildBounceRow(),
       );
 
-      const detail = await service.get('message-1', {
-        includeBotEvents: false,
-      });
+      const detail = await service.get(
+        'message-1',
+        { includeBotEvents: false },
+        ADMIN_USER,
+      );
 
       expect(trackingEventsRepository.listForMessage).toHaveBeenCalledWith(
         'message-1',
@@ -286,6 +339,30 @@ describe('SentMailService', () => {
         statusCode: '5.1.1',
       });
     });
+
+    it('lets an agent fetch a message they sent', async () => {
+      emailMessagesRepository.findById.mockResolvedValue(
+        buildMessageRow({ sent_by: AGENT_USER.sub }),
+      );
+
+      const detail = await service.get(
+        'message-1',
+        { includeBotEvents: false },
+        AGENT_USER,
+      );
+
+      expect(detail.id).toBe('message-1');
+    });
+
+    it("404s an agent fetching another agent's message", async () => {
+      emailMessagesRepository.findById.mockResolvedValue(
+        buildMessageRow({ sent_by: OTHER_AGENT_USER.sub }),
+      );
+
+      await expect(
+        service.get('message-1', { includeBotEvents: false }, AGENT_USER),
+      ).rejects.toThrow(NotFoundException);
+    });
   });
 
   describe('addTag / removeTag', () => {
@@ -293,9 +370,9 @@ describe('SentMailService', () => {
       emailMessagesRepository.findById.mockResolvedValue(buildMessageRow());
       tagsRepository.findById.mockResolvedValue(null);
 
-      await expect(service.addTag('message-1', 'missing-tag')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.addTag('message-1', 'missing-tag', ADMIN_USER),
+      ).rejects.toThrow(NotFoundException);
       expect(tagsRepository.addTagging).not.toHaveBeenCalled();
     });
 
@@ -309,7 +386,7 @@ describe('SentMailService', () => {
         updated_at: new Date(),
       });
 
-      const detail = await service.addTag('message-1', 'tag-1');
+      const detail = await service.addTag('message-1', 'tag-1', ADMIN_USER);
 
       expect(tagsRepository.addTagging).toHaveBeenCalledWith(
         'tag-1',
@@ -322,7 +399,7 @@ describe('SentMailService', () => {
     it('removes a tagging and returns the refreshed detail', async () => {
       emailMessagesRepository.findById.mockResolvedValue(buildMessageRow());
 
-      const detail = await service.removeTag('message-1', 'tag-1');
+      const detail = await service.removeTag('message-1', 'tag-1', ADMIN_USER);
 
       expect(tagsRepository.removeTagging).toHaveBeenCalledWith(
         'tag-1',
@@ -330,6 +407,16 @@ describe('SentMailService', () => {
         'message-1',
       );
       expect(detail.id).toBe('message-1');
+    });
+
+    it("404s an agent tagging another agent's message", async () => {
+      emailMessagesRepository.findById.mockResolvedValue(
+        buildMessageRow({ sent_by: OTHER_AGENT_USER.sub }),
+      );
+
+      await expect(
+        service.addTag('message-1', 'tag-1', AGENT_USER),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

@@ -76,9 +76,16 @@ export class EmailMessagesService {
     private readonly templateCategoriesRepository: TemplateCategoriesRepository,
   ) {}
 
-  async get(id: string): Promise<EmailMessageSummary> {
+  async get(
+    id: string,
+    currentUserId: string,
+    currentUserRole: UserRole,
+  ): Promise<EmailMessageSummary> {
     const row = await this.emailMessagesRepository.findById(id);
-    if (!row) {
+    if (
+      !row ||
+      (currentUserRole === 'agent' && row.sent_by !== currentUserId)
+    ) {
       throw new NotFoundException('Message not found');
     }
     const attachments = await this.emailMessagesRepository.getAttachments(id);
@@ -495,9 +502,16 @@ export class EmailMessagesService {
    * `defaultTemplateId` if one is set, otherwise the first active template
    * in that category, or none if the category is empty.
    */
-  async getFollowUpDraft(messageId: string): Promise<FollowUpDraftResponse> {
+  async getFollowUpDraft(
+    messageId: string,
+    currentUserId: string,
+    currentUserRole: UserRole,
+  ): Promise<FollowUpDraftResponse> {
     const message = await this.emailMessagesRepository.findById(messageId);
-    if (!message) {
+    if (
+      !message ||
+      (currentUserRole === 'agent' && message.sent_by !== currentUserId)
+    ) {
       throw new NotFoundException('Message not found');
     }
 

@@ -7,6 +7,7 @@ import type {
   EmailMessageSummary,
   ScheduledSendListResponse,
 } from '@tft/shared';
+import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { ScheduledSendsRepository } from '../database/scheduled-sends.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
@@ -31,10 +32,12 @@ export class ScheduledSendsService {
 
   async list(
     query: ScheduledSendListQueryDto,
+    currentUser: AccessTokenPayload,
   ): Promise<ScheduledSendListResponse> {
     const { rows, total } = await this.scheduledSendsRepository.list({
       page: query.page,
       pageSize: query.pageSize,
+      sentBy: currentUser.role === 'agent' ? currentUser.sub : undefined,
     });
 
     const versionIds = [
@@ -68,7 +71,10 @@ export class ScheduledSendsService {
     };
   }
 
-  async cancel(messageId: string): Promise<EmailMessageSummary> {
+  async cancel(
+    messageId: string,
+    currentUser: AccessTokenPayload,
+  ): Promise<EmailMessageSummary> {
     const scheduledSend =
       await this.scheduledSendsRepository.findByMessageId(messageId);
     if (!scheduledSend) {
@@ -78,6 +84,7 @@ export class ScheduledSendsService {
     if (!message || message.status !== 'scheduled') {
       throw new BadRequestException('This message is no longer scheduled');
     }
+    this.assertOwnedByAgent(message.sent_by, currentUser);
 
     if (scheduledSend.job_id) {
       await this.sendQueueService.cancelScheduled(scheduledSend.job_id);
@@ -94,6 +101,7 @@ export class ScheduledSendsService {
   async reschedule(
     messageId: string,
     dto: RescheduleSendDto,
+    currentUser: AccessTokenPayload,
   ): Promise<EmailMessageSummary> {
     const scheduledSend =
       await this.scheduledSendsRepository.findByMessageId(messageId);
@@ -104,6 +112,7 @@ export class ScheduledSendsService {
     if (!message || message.status !== 'scheduled') {
       throw new BadRequestException('This message is no longer scheduled');
     }
+    this.assertOwnedByAgent(message.sent_by, currentUser);
 
     if (scheduledSend.job_id) {
       await this.sendQueueService.cancelScheduled(scheduledSend.job_id);
@@ -122,5 +131,15 @@ export class ScheduledSendsService {
     const attachments =
       await this.emailMessagesRepository.getAttachments(messageId);
     return toEmailMessageSummary(message, attachments);
+  }
+
+  /** Agents may only manage scheduled sends they created; other authorized roles are unrestricted. */
+  private assertOwnedByAgent(
+    sentBy: string | null,
+    currentUser: AccessTokenPayload,
+  ): void {
+    if (currentUser.role === 'agent' && sentBy !== currentUser.sub) {
+      throw new NotFoundException('Scheduled send not found');
+    }
   }
 }

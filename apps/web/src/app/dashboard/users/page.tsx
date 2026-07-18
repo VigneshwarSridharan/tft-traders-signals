@@ -10,8 +10,17 @@ import type {
 import { USER_ROLES } from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
+import { RequireRole } from "@/components/require-role";
 
 export default function UsersAdminPage() {
+  return (
+    <RequireRole roles={["admin"]}>
+      <UsersAdminPageContent />
+    </RequireRole>
+  );
+}
+
+function UsersAdminPageContent() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserSummary[]>([]);
   const [invitations, setInvitations] = useState<InvitationSummary[]>([]);

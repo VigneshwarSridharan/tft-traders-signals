@@ -24,6 +24,7 @@ import type {
 } from "@tft/shared";
 import { useAuth } from "@/lib/auth-context";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { RequireRole } from "@/components/require-role";
 import {
   RichTextEditor,
   type RichTextEditorHandle,
@@ -1131,9 +1132,11 @@ function ComposeForm() {
 
 export default function ComposePage() {
   return (
-    <Suspense fallback={null}>
-      <ComposeForm />
-    </Suspense>
+    <RequireRole roles={["admin", "manager", "agent"]}>
+      <Suspense fallback={null}>
+        <ComposeForm />
+      </Suspense>
+    </RequireRole>
   );
 }
 

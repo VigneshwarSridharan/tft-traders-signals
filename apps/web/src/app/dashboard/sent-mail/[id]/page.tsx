@@ -9,6 +9,7 @@ import type {
   TagSummary,
 } from "@tft/shared";
 import { ApiError, apiFetch } from "@/lib/api-client";
+import { useAuth } from "@/lib/auth-context";
 import { useRealtimeEvents } from "@/lib/realtime-context";
 import { StatusBadge } from "../page";
 
@@ -17,6 +18,8 @@ function formatDate(value: string | null): string {
 }
 
 export default function SentMailDetailPage() {
+  const { user } = useAuth();
+  const canTag = user?.role !== "viewer";
   const params = useParams<{ id: string }>();
   const messageId = params.id;
 
@@ -178,6 +181,7 @@ export default function SentMailDetailPage() {
               className="inline-flex items-center gap-1 rounded-full bg-zinc-200 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
             >
               {tag.name}
+              {canTag && (
               <button
                 type="button"
                 onClick={() => void removeTag(tag.id)}
@@ -186,9 +190,10 @@ export default function SentMailDetailPage() {
               >
                 ×
               </button>
+              )}
             </span>
           ))}
-          {availableTags.length > 0 && (
+          {canTag && availableTags.length > 0 && (
             <select
               value=""
               onChange={(e) => void addTag(e.target.value)}

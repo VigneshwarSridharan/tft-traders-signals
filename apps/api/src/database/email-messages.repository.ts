@@ -17,6 +17,8 @@ export interface EmailMessageListFilter {
   tagId?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  /** Restricts results to messages sent by this user — used to scope agents to their own sends. */
+  sentBy?: string;
   sort: SentMailSortField;
   sortDir: 'asc' | 'desc';
   page: number;
@@ -145,6 +147,10 @@ export class EmailMessagesRepository {
     if (filter.dateTo) {
       params.push(filter.dateTo);
       conditions.push(`COALESCE(sent_at, created_at) <= $${params.length}`);
+    }
+    if (filter.sentBy) {
+      params.push(filter.sentBy);
+      conditions.push(`sent_by = $${params.length}`);
     }
 
     const whereClause =

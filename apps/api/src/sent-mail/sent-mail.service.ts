@@ -4,6 +4,7 @@ import type {
   SentMailListItem,
   SentMailListResponse,
 } from '@tft/shared';
+import type { AccessTokenPayload } from '../auth/jwt-payload.interface';
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { InboundRepository } from '../database/inbound.repository';
@@ -34,7 +35,10 @@ export class SentMailService {
     private readonly tagsRepository: TagsRepository,
   ) {}
 
-  async list(query: SentMailListQueryDto): Promise<SentMailListResponse> {
+  async list(
+    query: SentMailListQueryDto,
+    currentUser: AccessTokenPayload,
+  ): Promise<SentMailListResponse> {
     const { rows, total } = await this.emailMessagesRepository.list({
       search: query.search,
       status: query.status,
@@ -43,6 +47,7 @@ export class SentMailService {
       tagId: query.tagId,
       dateFrom: query.dateFrom,
       dateTo: query.dateTo,
+      sentBy: currentUser.role === 'agent' ? currentUser.sub : undefined,
       sort: query.sort,
       sortDir: query.sortDir,
       page: query.page,
@@ -60,8 +65,9 @@ export class SentMailService {
   async get(
     id: string,
     options: MessageDetailQueryDto,
+    currentUser: AccessTokenPayload,
   ): Promise<SentMailDetail> {
-    const row = await this.findOrThrow(id);
+    const row = await this.findOrThrow(id, currentUser);
 
     const [
       senderAccounts,
@@ -107,25 +113,40 @@ export class SentMailService {
     );
   }
 
-  async addTag(id: string, tagId: string): Promise<SentMailDetail> {
-    await this.findOrThrow(id);
+  async addTag(
+    id: string,
+    tagId: string,
+    currentUser: AccessTokenPayload,
+  ): Promise<SentMailDetail> {
+    await this.findOrThrow(id, currentUser);
     const tag = await this.tagsRepository.findById(tagId);
     if (!tag) {
       throw new NotFoundException(`Tag ${tagId} not found`);
     }
     await this.tagsRepository.addTagging(tagId, 'message', id);
-    return this.get(id, { includeBotEvents: false });
+    return this.get(id, { includeBotEvents: false }, currentUser);
   }
 
-  async removeTag(id: string, tagId: string): Promise<SentMailDetail> {
-    await this.findOrThrow(id);
+  async removeTag(
+    id: string,
+    tagId: string,
+    currentUser: AccessTokenPayload,
+  ): Promise<SentMailDetail> {
+    await this.findOrThrow(id, currentUser);
     await this.tagsRepository.removeTagging(tagId, 'message', id);
-    return this.get(id, { includeBotEvents: false });
+    return this.get(id, { includeBotEvents: false }, currentUser);
   }
 
-  private async findOrThrow(id: string): Promise<EmailMessageRow> {
+  /** Agents may only view/manage messages they sent; other authorized roles see everything. */
+  private async findOrThrow(
+    id: string,
+    currentUser: AccessTokenPayload,
+  ): Promise<EmailMessageRow> {
     const row = await this.emailMessagesRepository.findById(id);
-    if (!row) {
+    if (
+      !row ||
+      (currentUser.role === 'agent' && row.sent_by !== currentUser.sub)
+    ) {
       throw new NotFoundException('Message not found');
     }
     return row;
