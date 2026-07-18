@@ -7,6 +7,7 @@ import type {
   TemplateVersionSummary,
   TestSendTemplateResponse,
 } from '@tft/shared';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import type { EmailTemplateRow } from '../database/rows';
@@ -41,6 +42,7 @@ export class TemplatesService {
     private readonly templateCategoriesRepository: TemplateCategoriesRepository,
     private readonly customFieldDefsRepository: CustomFieldDefsRepository,
     private readonly customersRepository: CustomersRepository,
+    private readonly auditLogsRepository: AuditLogsRepository,
   ) {}
 
   async list(query: TemplateListQueryDto): Promise<EmailTemplateSummary[]> {
@@ -93,12 +95,22 @@ export class TemplatesService {
 
     const refreshed = await this.getTemplateOrThrow(template.id);
     const [summary] = await this.toSummaries([refreshed]);
+
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'template.create',
+      entityType: 'template',
+      entityId: template.id,
+      metadata: { name: template.name },
+    });
+
     return summary;
   }
 
   async update(
     id: string,
     patch: UpdateTemplateDto,
+    userId: string | null,
   ): Promise<EmailTemplateSummary> {
     await this.getTemplateOrThrow(id);
 
@@ -116,6 +128,15 @@ export class TemplatesService {
       throw new NotFoundException('Template not found');
     }
     const [summary] = await this.toSummaries([updated]);
+
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'template.update',
+      entityType: 'template',
+      entityId: id,
+      metadata: { fields: Object.keys(patch) },
+    });
+
     return summary;
   }
 
@@ -136,6 +157,15 @@ export class TemplatesService {
     );
     const refreshed = await this.getTemplateOrThrow(id);
     const [summary] = await this.toSummaries([refreshed]);
+
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'template.version_create',
+      entityType: 'template',
+      entityId: id,
+      metadata: { subject: input.subject },
+    });
+
     return summary;
   }
 
@@ -172,12 +202,28 @@ export class TemplatesService {
 
     const refreshed = await this.getTemplateOrThrow(copy.id);
     const [summary] = await this.toSummaries([refreshed]);
+
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'template.duplicate',
+      entityType: 'template',
+      entityId: copy.id,
+      metadata: { sourceTemplateId: id },
+    });
+
     return summary;
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, userId: string | null): Promise<void> {
     await this.getTemplateOrThrow(id);
     await this.templatesRepository.softDelete(id);
+    await this.auditLogsRepository.record({
+      userId,
+      action: 'template.delete',
+      entityType: 'template',
+      entityId: id,
+      metadata: {},
+    });
   }
 
   async mergeFields(): Promise<MergeFieldOption[]> {

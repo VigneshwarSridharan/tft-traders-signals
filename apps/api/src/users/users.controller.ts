@@ -69,7 +69,8 @@ export class UsersController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ZodValidationPipe(updateUserSchema)) body: UpdateUserDto,
+    @CurrentUser() currentUser: AccessTokenPayload,
   ): Promise<UserSummary> {
-    return this.usersService.update(id, body);
+    return this.usersService.update(id, body, currentUser.sub);
   }
 }

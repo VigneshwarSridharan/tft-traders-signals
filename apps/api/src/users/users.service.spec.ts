@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from './users.service';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { InvitationsRepository } from '../database/invitations.repository';
 import { UsersRepository } from '../database/users.repository';
 import type { InvitationRow, UserRow } from '../database/rows';
@@ -31,6 +32,7 @@ describe('UsersService', () => {
   let usersRepository: jest.Mocked<UsersRepository>;
   let invitationsRepository: jest.Mocked<InvitationsRepository>;
   let configService: jest.Mocked<ConfigService>;
+  let auditLogsRepository: jest.Mocked<AuditLogsRepository>;
 
   beforeEach(() => {
     usersRepository = {
@@ -59,10 +61,15 @@ describe('UsersService', () => {
       }),
     } as unknown as jest.Mocked<ConfigService>;
 
+    auditLogsRepository = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditLogsRepository>;
+
     service = new UsersService(
       usersRepository,
       invitationsRepository,
       configService,
+      auditLogsRepository,
     );
   });
 

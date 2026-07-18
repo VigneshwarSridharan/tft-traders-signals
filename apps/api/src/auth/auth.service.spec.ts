@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { AuthService } from './auth.service';
+import { AuditLogsRepository } from '../database/audit-logs.repository';
 import { InvitationsRepository } from '../database/invitations.repository';
 import { SessionsRepository } from '../database/sessions.repository';
 import { UsersRepository } from '../database/users.repository';
@@ -36,6 +37,7 @@ describe('AuthService', () => {
   let invitationsRepository: jest.Mocked<InvitationsRepository>;
   let jwtService: jest.Mocked<JwtService>;
   let configService: jest.Mocked<ConfigService>;
+  let auditLogsRepository: jest.Mocked<AuditLogsRepository>;
 
   beforeEach(() => {
     usersRepository = {
@@ -73,12 +75,17 @@ describe('AuthService', () => {
       }),
     } as unknown as jest.Mocked<ConfigService>;
 
+    auditLogsRepository = {
+      record: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<AuditLogsRepository>;
+
     service = new AuthService(
       usersRepository,
       sessionsRepository,
       invitationsRepository,
       jwtService,
       configService,
+      auditLogsRepository,
     );
   });
 
@@ -184,6 +191,29 @@ describe('AuthService', () => {
     it('revokes the session for a presented refresh token', async () => {
       await service.logout('some-token');
       expect(sessionsRepository.revokeByHash).toHaveBeenCalled();
+    });
+
+    it('records an audit row when the session is still valid', async () => {
+      sessionsRepository.findValidByHash.mockResolvedValue({
+        id: 'session-1',
+        user_id: 'user-1',
+        refresh_token_hash: 'hash',
+        user_agent: null,
+        ip: null,
+        expires_at: new Date(Date.now() + 1000),
+        revoked_at: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      await service.logout('some-token');
+
+      expect(auditLogsRepository.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-1',
+          action: 'auth.logout',
+        }),
+      );
     });
   });
 

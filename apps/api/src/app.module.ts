@@ -23,6 +23,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { EngagementModule } from './engagement/engagement.module';
+import { AuditLogsModule } from './audit-logs/audit-logs.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { EngagementModule } from './engagement/engagement.module';
     RealtimeModule,
     NotificationsModule,
     EngagementModule,
+    AuditLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

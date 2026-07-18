@@ -231,7 +231,7 @@ platform and sees opens, clicks, and bounces per message.
   scoping design, and the documented limitation on agent-scoped aggregate
   analytics (daily_stats has no per-user dimension yet).
 
-### ⬜ Task 20 — Audit logging (S)
+### ✅ Task 20 — Audit logging (S)
 **Depends on:** 19
 - Audit writes on: auth events, sends, template changes, credential changes,
   suppression overrides, exports, role changes; admin audit viewer with
