@@ -15,6 +15,10 @@ export const AUDIT_LOG_ACTIONS = [
   "suppression.release",
   "suppression.override",
   "customer.export",
+  "customer.gdpr_export",
+  "customer.erase",
+  "unsubscribe.recorded",
+  "settings.update",
   "user.role_change",
 ] as const;
 

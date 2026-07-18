@@ -77,4 +77,15 @@ export class SuppressionsRepository {
     );
     return rows[0] ?? null;
   }
+
+  /** GDPR erasure: the suppression entry survives (the address must stay blocked) but loses its link to the deleted customer row. */
+  async clearCustomerId(
+    customerId: string,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `UPDATE suppressions SET customer_id = NULL WHERE customer_id = $1`,
+      [customerId],
+    );
+  }
 }

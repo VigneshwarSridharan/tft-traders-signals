@@ -83,7 +83,8 @@ export interface SentMailDetail {
   senderAccountId: string;
   senderAccountEmail: string;
   senderAccountDisplayName: string | null;
-  customerId: string;
+  /** Null once the customer has been GDPR-erased; the message row is anonymized and kept for aggregate history. */
+  customerId: string | null;
   templateId: string | null;
   templateName: string | null;
   status: MessageStatus;

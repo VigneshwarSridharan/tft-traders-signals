@@ -38,6 +38,8 @@ list, template list), not an oversight.
 | Customers — read/export | ✅ | ✅ | ❌ | ❌ |
 | Customers — read (list/get/timeline) | ✅ | ✅ | ✅ | ✅ |
 | Customers — create/update/delete/import/tag | ✅ | ✅ | ❌ | ❌ |
+| Customers — GDPR export/erase | ✅ | ❌ | ❌ | ❌ |
+| Settings (compliance/retention) — read/manage | ✅ | ❌ | ❌ | ❌ |
 | Tags — read | ✅ | ✅ | ✅ | ✅ |
 | Tags — create/update/delete | ✅ | ✅ | ❌ | ❌ |
 | Compose / send / test-send | ✅ | ✅ | ✅ (creates own) | ❌ |
@@ -49,6 +51,7 @@ list, template list), not an oversight.
 | Notifications — own inbox/preferences | ✅ | ✅ | ✅ | ✅ |
 | Realtime SSE stream — own events | ✅ | ✅ | ✅ | ✅ |
 | Public tracking pixel/click redirect | n/a — unauthenticated by design | | | |
+| Public unsubscribe page/one-click endpoint | n/a — unauthenticated by design | | | |
 
 "Own only" is enforced in the service layer (not just the controller): an
 agent requesting another user's message/scheduled-send by ID gets a 404,

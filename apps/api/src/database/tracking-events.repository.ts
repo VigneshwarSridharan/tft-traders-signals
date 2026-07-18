@@ -122,4 +122,53 @@ export class TrackingEventsRepository {
     );
     return Number(rows[0]?.count ?? 0);
   }
+
+  /**
+   * GDPR IP truncation (Task 21): zeroes the host bits of every IP older
+   * than `cutoff`, keeping only the /24 (IPv4) or /48 (IPv6) network —
+   * enough for coarse geo lookups, not enough to identify a device. The
+   * `masklen` guard makes re-runs a cheap no-op on already-truncated rows.
+   */
+  async truncateIpsOlderThan(cutoff: Date): Promise<number> {
+    const { rowCount } = await this.pool.query(
+      `UPDATE tracking_events
+       SET ip = network(set_masklen(ip, CASE family(ip) WHEN 4 THEN 24 ELSE 48 END))::inet
+       WHERE ip IS NOT NULL
+         AND occurred_at < $1
+         AND masklen(ip) <> CASE family(ip) WHEN 4 THEN 24 ELSE 48 END`,
+      [cutoff],
+    );
+    return rowCount ?? 0;
+  }
+
+  /** Every monthly partition of tracking_events, e.g. "tracking_events_2026_07" (excludes the default catch-all partition). */
+  async listPartitionNames(): Promise<string[]> {
+    const { rows } = await this.pool.query<{ name: string }>(
+      `SELECT child.relname AS name
+       FROM pg_inherits
+       JOIN pg_class parent ON pg_inherits.inhparent = parent.oid
+       JOIN pg_class child ON pg_inherits.inhrelid = child.oid
+       WHERE parent.relname = 'tracking_events'
+         AND child.relname <> 'tracking_events_default'
+       ORDER BY child.relname`,
+    );
+    return rows.map((row) => row.name);
+  }
+
+  /** Drops a monthly partition outright (used by the retention purge job — aggregates in daily_stats are unaffected). */
+  async dropPartition(partitionName: string): Promise<void> {
+    if (!/^tracking_events_\d{4}_\d{2}$/.test(partitionName)) {
+      throw new Error(
+        `Refusing to drop unexpected partition: ${partitionName}`,
+      );
+    }
+    await this.pool.query(`DROP TABLE IF EXISTS ${partitionName}`);
+  }
+
+  /** Idempotently creates the monthly partition covering `monthDate`, via the SQL helper seeded in the tracking_events migration. */
+  async createPartition(monthDate: Date): Promise<void> {
+    await this.pool.query(`SELECT create_tracking_events_partition($1::date)`, [
+      monthDate,
+    ]);
+  }
 }

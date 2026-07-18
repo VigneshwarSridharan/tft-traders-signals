@@ -11,7 +11,8 @@ export interface EmailMessageSummary {
   id: string;
   publicToken: string;
   senderAccountId: string;
-  customerId: string;
+  /** Null once the customer has been GDPR-erased; the message row is anonymized and kept for aggregate history. */
+  customerId: string | null;
   templateVersionId: string | null;
   toEmail: string;
   toName: string | null;

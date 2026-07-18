@@ -67,6 +67,16 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(300_000),
+  IP_TRUNCATION_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(24 * 60 * 60_000),
+  EVENT_PURGE_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(24 * 60 * 60_000),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

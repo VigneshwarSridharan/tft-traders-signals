@@ -16,6 +16,8 @@ import {
 import type { Response } from 'express';
 import type {
   CsvImportResult,
+  CustomerErasureResult,
+  CustomerGdprExport,
   CustomerListResponse,
   CustomerSummary,
   CustomerTimelineResponse,
@@ -71,6 +73,24 @@ export class CustomersController {
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<CustomerSummary> {
     return this.customersService.get(id);
+  }
+
+  @Get(':id/gdpr-export')
+  @Roles('admin')
+  gdprExport(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AccessTokenPayload,
+  ): Promise<CustomerGdprExport> {
+    return this.customersService.exportGdprData(id, user.sub);
+  }
+
+  @Post(':id/erase')
+  @Roles('admin')
+  erase(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AccessTokenPayload,
+  ): Promise<CustomerErasureResult> {
+    return this.customersService.erase(id, user.sub);
   }
 
   @Get(':id/timeline')

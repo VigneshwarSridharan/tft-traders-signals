@@ -12,6 +12,7 @@ import { TemplateCategoriesRepository } from '../database/template-categories.re
 import { TemplatesRepository } from '../database/templates.repository';
 import { EmailSenderService } from '../send/email-sender.service';
 import { SendQueueService } from '../send/send-queue.service';
+import { SettingsService } from '../settings/settings.service';
 import type {
   CustomerRow,
   EmailMessageRow,
@@ -116,6 +117,7 @@ describe('EmailMessagesService', () => {
   let emailSenderService: jest.Mocked<EmailSenderService>;
   let templateCategoriesRepository: jest.Mocked<TemplateCategoriesRepository>;
   let auditLogsRepository: jest.Mocked<AuditLogsRepository>;
+  let settingsService: jest.Mocked<SettingsService>;
 
   beforeEach(() => {
     emailMessagesRepository = {
@@ -180,6 +182,10 @@ describe('EmailMessagesService', () => {
       record: jest.fn().mockResolvedValue(undefined),
     } as unknown as jest.Mocked<AuditLogsRepository>;
 
+    settingsService = {
+      getCompliance: jest.fn().mockResolvedValue({ physicalAddress: '' }),
+    } as unknown as jest.Mocked<SettingsService>;
+
     service = new EmailMessagesService(
       emailMessagesRepository,
       emailLinksRepository,
@@ -193,6 +199,7 @@ describe('EmailMessagesService', () => {
       emailSenderService,
       templateCategoriesRepository,
       auditLogsRepository,
+      settingsService,
     );
   });
 
@@ -354,6 +361,33 @@ describe('EmailMessagesService', () => {
     );
   });
 
+  it('appends the unsubscribe footer and CAN-SPAM address to both bodies', async () => {
+    settingsService.getCompliance.mockResolvedValue({
+      physicalAddress: '123 Main St, Springfield',
+    });
+
+    await service.compose(
+      {
+        senderAccountId: 'sender-1',
+        customerIds: ['customer-1'],
+        subject: 'Hi',
+        bodyHtml: '<p>Hi</p>',
+        bodyText: 'Hi',
+      },
+      [],
+      'user-1',
+      'admin',
+    );
+
+    const createCall = emailMessagesRepository.create.mock.calls[0][0];
+    expect(createCall.bodyHtmlRendered).toContain(
+      'https://track.test.local/u/',
+    );
+    expect(createCall.bodyHtmlRendered).toContain('123 Main St, Springfield');
+    expect(createCall.bodyTextRendered).toContain('Unsubscribe:');
+    expect(createCall.bodyTextRendered).toContain('123 Main St, Springfield');
+  });
+
   it('does not inject tracking or persist links when tracking is disabled for the send', async () => {
     await service.compose(
       {
@@ -368,13 +402,14 @@ describe('EmailMessagesService', () => {
       'admin',
     );
 
-    expect(emailMessagesRepository.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        bodyHtmlRendered:
-          '<p>Hi <a href="https://example.com/quote">view</a></p>',
-        trackingEnabled: false,
-      }),
+    const createCall = emailMessagesRepository.create.mock.calls[0][0];
+    expect(createCall.trackingEnabled).toBe(false);
+    expect(createCall.bodyHtmlRendered).toContain(
+      '<p>Hi <a href="https://example.com/quote">view</a></p>',
     );
+    // No tracking pixel/click rewrite, but the unsubscribe footer still
+    // applies — it's independent of the tracking-pixel preference.
+    expect(createCall.bodyHtmlRendered).toContain('/u/');
     expect(emailLinksRepository.create).not.toHaveBeenCalled();
   });
 

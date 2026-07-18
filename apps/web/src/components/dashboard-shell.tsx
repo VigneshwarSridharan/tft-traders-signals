@@ -64,6 +64,11 @@ const NAV_ITEMS: { href: string; label: string; roles: UserRole[] }[] = [
     label: "Audit Log",
     roles: ["admin"],
   },
+  {
+    href: "/dashboard/settings",
+    label: "Settings",
+    roles: ["admin"],
+  },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {

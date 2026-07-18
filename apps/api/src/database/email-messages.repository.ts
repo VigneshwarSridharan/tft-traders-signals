@@ -294,6 +294,18 @@ export class EmailMessagesRepository {
     );
   }
 
+  /** Sets `unsubscribed_at` on first unsubscribe only — idempotent for repeat clicks/one-click POSTs. */
+  async markUnsubscribed(
+    id: string,
+    unsubscribedAt: Date,
+    executor: Queryable = this.pool,
+  ): Promise<void> {
+    await executor.query(
+      `UPDATE email_messages SET unsubscribed_at = COALESCE(unsubscribed_at, $2) WHERE id = $1`,
+      [id, unsubscribedAt],
+    );
+  }
+
   /** Sets `replied_at` on first reply only — a later reply in the same thread never overwrites the original timestamp. */
   async markReplied(
     id: string,
@@ -385,6 +397,31 @@ export class EmailMessagesRepository {
       `UPDATE email_messages SET follow_up_notified_at = now() WHERE id = $1`,
       [id],
     );
+  }
+
+  /**
+   * GDPR erasure: strips PII from every message sent to this customer
+   * (rendered body snapshots, to/name) and detaches customer_id — the
+   * message row itself, its counters, and its tracking_events survive so
+   * aggregate analytics stay consistent. Returns the number of rows touched.
+   */
+  async anonymizeForCustomer(
+    customerId: string,
+    anonymizedEmail: string,
+    executor: Queryable = this.pool,
+  ): Promise<number> {
+    const { rowCount } = await executor.query(
+      `UPDATE email_messages
+       SET customer_id = NULL,
+           to_email = $2,
+           to_name = 'Erased customer',
+           subject = NULL,
+           body_html_rendered = NULL,
+           body_text_rendered = NULL
+       WHERE customer_id = $1`,
+      [customerId, anonymizedEmail],
+    );
+    return rowCount ?? 0;
   }
 
   async getAttachmentsForMessages(
