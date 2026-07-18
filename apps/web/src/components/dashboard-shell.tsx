@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
@@ -14,6 +15,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/scheduled", label: "Scheduled" },
   { href: "/dashboard/customers", label: "Customers" },
   { href: "/dashboard/templates", label: "Templates" },
+  { href: "/dashboard/notifications", label: "Notifications" },
   { href: "/dashboard/users", label: "Users", adminOnly: true },
   {
     href: "/dashboard/sender-accounts",
@@ -100,6 +102,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             ({user.role})
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <ThemeToggle />
             <button
               type="button"

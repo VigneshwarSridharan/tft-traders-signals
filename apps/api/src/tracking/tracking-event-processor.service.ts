@@ -8,6 +8,7 @@ import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import { withTransaction } from '../database/transaction.util';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   evaluateClickBotSignals,
   isScannerUserAgent,
@@ -16,6 +17,13 @@ import { GeoLookupService } from './geo-lookup.service';
 import { detectMailProxy } from './mail-proxy-detection.util';
 import type { TrackingJobData } from './tracking-queue.service';
 import { parseUserAgent } from './user-agent.util';
+
+function describeRecipient(message: {
+  to_name: string | null;
+  to_email: string;
+}): string {
+  return message.to_name ?? message.to_email;
+}
 
 // Window used for the "all links clicked instantly" bot heuristic.
 const SIBLING_CLICK_WINDOW_MS = 2_000;
@@ -31,6 +39,7 @@ export class TrackingEventProcessorService {
     private readonly trackingEventsRepository: TrackingEventsRepository,
     private readonly geoLookupService: GeoLookupService,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async processJob(job: Job<TrackingJobData>): Promise<void> {
@@ -89,6 +98,15 @@ export class TrackingEventProcessorService {
         );
       }
     });
+
+    if (!isBot && message.open_count === 0) {
+      await this.notificationsService.notify({
+        userId: message.sent_by,
+        type: 'first_open',
+        title: `${describeRecipient(message)} opened "${message.subject ?? '(no subject)'}"`,
+        messageId: message.id,
+      });
+    }
   }
 
   private async processClick(
@@ -186,5 +204,14 @@ export class TrackingEventProcessorService {
         await this.emailLinksRepository.recordClick(data.linkId, client);
       }
     });
+
+    if (!botSignals.isBot) {
+      await this.notificationsService.notify({
+        userId: message.sent_by,
+        type: 'click',
+        title: `${describeRecipient(message)} clicked a link in "${message.subject ?? '(no subject)'}"`,
+        messageId: message.id,
+      });
+    }
   }
 }

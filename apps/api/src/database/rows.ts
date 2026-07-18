@@ -2,6 +2,8 @@ import type {
   BounceClass,
   CustomFieldType,
   MessageStatus,
+  NotificationPreferences,
+  NotificationType,
   SenderAccountStatus,
   SuppressionReason,
   TemplateStatus,
@@ -18,6 +20,7 @@ export interface UserRow {
   is_active: boolean;
   last_login_at: Date | null;
   theme: 'system' | 'light' | 'dark';
+  notification_prefs: Partial<NotificationPreferences>;
   created_at: Date;
   updated_at: Date;
 }
@@ -267,6 +270,18 @@ export interface ScheduledSendRow {
   timezone: string | null;
   job_id: string | null;
   cancelled_at: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface NotificationRow {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  message_id: string | null;
+  title: string;
+  body: string | null;
+  read_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }

@@ -13,7 +13,15 @@ import { SenderAccountsRepository } from '../database/sender-accounts.repository
 import { SuppressionsRepository } from '../database/suppressions.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
+import { NotificationsService } from '../notifications/notifications.service';
 import { parseDsn } from './dsn-parser.util';
+
+function describeRecipient(message: {
+  to_name: string | null;
+  to_email: string;
+}): string {
+  return message.to_name ?? message.to_email;
+}
 
 function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown IMAP error';
@@ -31,6 +39,7 @@ export class InboundSyncService {
     private readonly suppressionsRepository: SuppressionsRepository,
     private readonly trackingEventsRepository: TrackingEventsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async syncAllAccounts(): Promise<void> {
@@ -122,6 +131,7 @@ export class InboundSyncService {
     }
 
     const dsn = await parseDsn(source);
+    const pendingNotifications: Array<() => Promise<void>> = [];
 
     await withTransaction(this.pool, async (client) => {
       const bounceMatchedMessage =
@@ -214,6 +224,15 @@ export class InboundSyncService {
           dsn.bounceClass,
           client,
         );
+        pendingNotifications.push(() =>
+          this.notificationsService.notify({
+            userId: bounceMatchedMessage.sent_by,
+            type: 'bounce',
+            title: `Email to ${describeRecipient(bounceMatchedMessage)} bounced (${dsn.bounceClass})`,
+            body: dsn.diagnostic ?? undefined,
+            messageId: bounceMatchedMessage.id,
+          }),
+        );
       }
 
       // Only the first reply on a thread emits an event/timestamp — later
@@ -249,8 +268,21 @@ export class InboundSyncService {
           repliedAt,
           client,
         );
+        const repliedMessage = replyMatchedMessage;
+        pendingNotifications.push(() =>
+          this.notificationsService.notify({
+            userId: repliedMessage.sent_by,
+            type: 'reply',
+            title: `${describeRecipient(repliedMessage)} replied to "${repliedMessage.subject ?? '(no subject)'}"`,
+            messageId: repliedMessage.id,
+          }),
+        );
       }
     });
+
+    for (const sendPendingNotification of pendingNotifications) {
+      await sendPendingNotification();
+    }
   }
 
   private async applySuppressionPolicy(

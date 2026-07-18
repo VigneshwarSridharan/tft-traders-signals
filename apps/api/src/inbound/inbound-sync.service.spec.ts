@@ -9,6 +9,7 @@ import { SuppressionsRepository } from '../database/suppressions.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
 import type { EmailMessageRow, SenderAccountRow } from '../database/rows';
 import type { EnvConfig } from '../config/env.validation';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function buildDsnSource(params: {
   status: string;
@@ -190,6 +191,7 @@ describe('InboundSyncService.processMessage', () => {
   let suppressionsRepository: jest.Mocked<SuppressionsRepository>;
   let trackingEventsRepository: jest.Mocked<TrackingEventsRepository>;
   let configService: ConfigService<EnvConfig, true>;
+  let notificationsService: jest.Mocked<NotificationsService>;
   let service: InboundSyncService;
 
   beforeEach(() => {
@@ -233,6 +235,10 @@ describe('InboundSyncService.processMessage', () => {
       }),
     } as unknown as ConfigService<EnvConfig, true>;
 
+    notificationsService = {
+      notify: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<NotificationsService>;
+
     service = new InboundSyncService(
       pool,
       senderAccountsRepository,
@@ -241,6 +247,7 @@ describe('InboundSyncService.processMessage', () => {
       suppressionsRepository,
       trackingEventsRepository,
       configService,
+      notificationsService,
     );
   });
 
@@ -271,6 +278,13 @@ describe('InboundSyncService.processMessage', () => {
         reason: 'hard_bounce',
       }),
       client,
+    );
+    expect(notificationsService.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'bounce',
+        messageId: 'message-1',
+      }),
     );
   });
 
@@ -392,6 +406,13 @@ describe('InboundSyncService.processMessage', () => {
     );
     expect(emailMessagesRepository.markBounced).not.toHaveBeenCalled();
     expect(suppressionsRepository.upsert).not.toHaveBeenCalled();
+    expect(notificationsService.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user-1',
+        type: 'reply',
+        messageId: 'message-1',
+      }),
+    );
   });
 
   it('falls back to References when In-Reply-To is absent', async () => {
@@ -450,6 +471,7 @@ describe('InboundSyncService.processMessage', () => {
     // ...but no second tracking event or replied_at overwrite.
     expect(trackingEventsRepository.insert).not.toHaveBeenCalled();
     expect(emailMessagesRepository.markReplied).not.toHaveBeenCalled();
+    expect(notificationsService.notify).not.toHaveBeenCalled();
   });
 
   it('a DSN message never runs reply correlation even if reply-shaped headers are present', async () => {

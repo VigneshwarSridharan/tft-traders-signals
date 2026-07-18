@@ -5,6 +5,7 @@ import { TrackingEventProcessorService } from './tracking-event-processor.servic
 import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { TrackingEventsRepository } from '../database/tracking-events.repository';
+import { NotificationsService } from '../notifications/notifications.service';
 import { GeoLookupService } from './geo-lookup.service';
 import type { EmailMessageRow } from '../database/rows';
 import type { EnvConfig } from '../config/env.validation';
@@ -59,6 +60,7 @@ describe('TrackingEventProcessorService', () => {
   let trackingEventsRepository: jest.Mocked<TrackingEventsRepository>;
   let geoLookupService: jest.Mocked<GeoLookupService>;
   let configService: ConfigService<EnvConfig, true>;
+  let notificationsService: jest.Mocked<NotificationsService>;
   let service: TrackingEventProcessorService;
 
   beforeEach(() => {
@@ -98,6 +100,10 @@ describe('TrackingEventProcessorService', () => {
       }),
     } as unknown as ConfigService<EnvConfig, true>;
 
+    notificationsService = {
+      notify: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<NotificationsService>;
+
     service = new TrackingEventProcessorService(
       pool,
       emailMessagesRepository,
@@ -105,6 +111,7 @@ describe('TrackingEventProcessorService', () => {
       trackingEventsRepository,
       geoLookupService,
       configService,
+      notificationsService,
     );
   });
 
@@ -132,6 +139,27 @@ describe('TrackingEventProcessorService', () => {
       expect(client.query).toHaveBeenNthCalledWith(1, 'BEGIN');
       expect(client.query).toHaveBeenNthCalledWith(2, 'COMMIT');
       expect(client.release).toHaveBeenCalled();
+      expect(notificationsService.notify).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', type: 'first_open' }),
+      );
+    });
+
+    it('does not send a first-open notification for a repeat open', async () => {
+      emailMessagesRepository.findByPublicToken.mockResolvedValue(
+        buildMessageRow({ open_count: 1 }),
+      );
+
+      await service.processJob(
+        buildJob({
+          kind: 'open',
+          token: 'pub-token',
+          ip: '203.0.113.5',
+          userAgent: 'Mozilla/5.0 (iPhone) Mobile Safari',
+          occurredAt: '2026-07-01T12:00:10.000Z',
+        }),
+      );
+
+      expect(notificationsService.notify).not.toHaveBeenCalled();
     });
 
     it('flags a known scanner user agent as bot and skips the counter update', async () => {
@@ -206,6 +234,9 @@ describe('TrackingEventProcessorService', () => {
         'link-1',
         client,
       );
+      expect(notificationsService.notify).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', type: 'click' }),
+      );
     });
 
     it('does not infer an open when the message already has one', async () => {
@@ -250,6 +281,7 @@ describe('TrackingEventProcessorService', () => {
       );
       expect(emailMessagesRepository.recordClick).not.toHaveBeenCalled();
       expect(emailLinksRepository.recordClick).not.toHaveBeenCalled();
+      expect(notificationsService.notify).not.toHaveBeenCalled();
     });
 
     it('rolls back the transaction if a repository call fails', async () => {
