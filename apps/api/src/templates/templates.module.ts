@@ -7,5 +7,6 @@ import { TemplatesService } from './templates.service';
   imports: [AuthModule],
   controllers: [TemplatesController],
   providers: [TemplatesService],
+  exports: [TemplatesService],
 })
 export class TemplatesModule {}

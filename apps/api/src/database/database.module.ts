@@ -23,6 +23,9 @@ import { DailyStatsRepository } from './daily-stats.repository';
 import { AnalyticsLeaderboardsRepository } from './analytics-leaderboards.repository';
 import { NotificationsRepository } from './notifications.repository';
 import { SettingsRepository } from './settings.repository';
+import { ApiKeysRepository } from './api-keys.repository';
+import { WebhookEndpointsRepository } from './webhook-endpoints.repository';
+import { WebhookDeliveriesRepository } from './webhook-deliveries.repository';
 
 @Global()
 @Module({
@@ -57,6 +60,9 @@ import { SettingsRepository } from './settings.repository';
     AnalyticsLeaderboardsRepository,
     NotificationsRepository,
     SettingsRepository,
+    ApiKeysRepository,
+    WebhookEndpointsRepository,
+    WebhookDeliveriesRepository,
   ],
   exports: [
     PG_POOL,
@@ -80,6 +86,9 @@ import { SettingsRepository } from './settings.repository';
     AnalyticsLeaderboardsRepository,
     NotificationsRepository,
     SettingsRepository,
+    ApiKeysRepository,
+    WebhookEndpointsRepository,
+    WebhookDeliveriesRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {

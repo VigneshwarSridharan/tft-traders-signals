@@ -52,6 +52,22 @@ list, template list), not an oversight.
 | Realtime SSE stream — own events | ✅ | ✅ | ✅ | ✅ |
 | Public tracking pixel/click redirect | n/a — unauthenticated by design | | | |
 | Public unsubscribe page/one-click endpoint | n/a — unauthenticated by design | | | |
+| API keys (`/api-keys`) — create/list/revoke | ✅ (all users') | ✅ (**own only**) | ✅ (**own only**) | ✅ (**own only**) |
+| Webhook endpoints (`/webhook-endpoints`) — CRUD, test-send, delivery log | ✅ | ❌ | ❌ | ❌ |
+| Public API (`/v1/*`) — API-key-authenticated, not JWT-cookie | Gated by the key's own scopes (see below) *and* its owning user's role — the usual `@Roles()` matrix above still applies per route (e.g. a `send`-scoped key owned by a viewer still can't send). | | | |
+
+API keys mirror the "own only" pattern used elsewhere: non-admins list and
+revoke only their own keys (404, not 403, when reaching for another user's
+key by ID); admins see and can revoke every key. Each key carries its own
+scopes (`send`, `read:messages`, `read:templates`, `write:templates`,
+`read:customers`, `write:customers`, `read:analytics`) checked by
+`ScopesGuard` on top of the owning user's role — both must allow a request.
+
+Webhook endpoints are admin-only end to end: creating, editing, deleting,
+sending a test delivery, and viewing the per-endpoint delivery log. Outbound
+webhook *dispatch* itself (the fan-out from send/tracking/inbound/unsubscribe
+events) isn't gated by role — it fires for any matching subscribed endpoint
+regardless of which user's action triggered the underlying event.
 
 "Own only" is enforced in the service layer (not just the controller): an
 agent requesting another user's message/scheduled-send by ID gets a 404,

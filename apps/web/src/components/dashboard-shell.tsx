@@ -65,6 +65,16 @@ const NAV_ITEMS: { href: string; label: string; roles: UserRole[] }[] = [
     roles: ["admin"],
   },
   {
+    href: "/dashboard/api-keys",
+    label: "API Keys",
+    roles: ALL_ROLES,
+  },
+  {
+    href: "/dashboard/webhooks",
+    label: "Webhooks",
+    roles: ["admin"],
+  },
+  {
     href: "/dashboard/settings",
     label: "Settings",
     roles: ["admin"],

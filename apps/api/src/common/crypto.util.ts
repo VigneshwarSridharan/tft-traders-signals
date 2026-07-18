@@ -41,3 +41,12 @@ export function decryptSecret(envelope: Buffer, encryptionKey: string): string {
   ]);
   return plaintext.toString('utf8');
 }
+
+/**
+ * One-way SHA-256 digest used for API key secrets — unlike sender-account
+ * app passwords (which must be decrypted to authenticate against SMTP/IMAP),
+ * an API key only ever needs to be compared against a stored hash.
+ */
+export function hashApiKeySecret(secret: string): string {
+  return createHash('sha256').update(secret).digest('hex');
+}

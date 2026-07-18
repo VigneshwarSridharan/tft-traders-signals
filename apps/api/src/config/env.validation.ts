@@ -77,6 +77,17 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(24 * 60 * 60_000),
+  PUBLIC_API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
+  PUBLIC_API_RATE_LIMIT_WINDOW_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60_000),
+  WEBHOOK_AUTO_DISABLE_THRESHOLD: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(10),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

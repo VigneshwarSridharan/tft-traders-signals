@@ -6,6 +6,7 @@ import { startInboundWorker } from './inbound/inbound-worker.bootstrap';
 import { startStatsRollupWorker } from './analytics/stats-rollup-worker.bootstrap';
 import { startEngagementWorker } from './engagement/engagement-worker.bootstrap';
 import { startComplianceWorker } from './compliance/compliance-worker.bootstrap';
+import { startWebhookWorker } from './webhooks/webhook-delivery-worker.bootstrap';
 
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
@@ -15,6 +16,7 @@ async function bootstrap() {
   const statsRollupWorker = startStatsRollupWorker(app);
   const engagementWorker = startEngagementWorker(app);
   const complianceWorker = startComplianceWorker(app);
+  const webhookWorker = startWebhookWorker(app);
 
   const shutdown = () => {
     void (async () => {
@@ -24,6 +26,7 @@ async function bootstrap() {
       await statsRollupWorker.close();
       await engagementWorker.close();
       await complianceWorker.close();
+      await webhookWorker.close();
       await app.close();
       process.exit(0);
     })();
@@ -32,7 +35,7 @@ async function bootstrap() {
   process.on('SIGINT', shutdown);
 
   console.log(
-    'Worker process started: consuming the send-email, tracking-events, inbound-sync, stats-rollup, engagement-rollup, and compliance queues.',
+    'Worker process started: consuming the send-email, tracking-events, inbound-sync, stats-rollup, engagement-rollup, compliance, and webhook-delivery queues.',
   );
 }
 void bootstrap();

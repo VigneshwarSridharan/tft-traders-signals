@@ -12,6 +12,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   send_failed: "Send failed",
   quota_warning: "Quota warning",
   follow_up_due: "Follow-up due",
+  webhook_disabled: "Webhook disabled",
 };
 
 const TYPE_ORDER: NotificationType[] = [
@@ -22,6 +23,7 @@ const TYPE_ORDER: NotificationType[] = [
   "send_failed",
   "quota_warning",
   "follow_up_due",
+  "webhook_disabled",
 ];
 
 export default function NotificationPreferencesPage() {

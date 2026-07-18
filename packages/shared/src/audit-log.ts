@@ -21,6 +21,12 @@ export const AUDIT_LOG_ACTIONS = [
   "settings.update",
   "user.role_change",
   "report.export",
+  "api_key.create",
+  "api_key.revoke",
+  "webhook_endpoint.create",
+  "webhook_endpoint.update",
+  "webhook_endpoint.delete",
+  "webhook_endpoint.auto_disabled",
 ] as const;
 
 export type AuditLogAction = (typeof AUDIT_LOG_ACTIONS)[number];

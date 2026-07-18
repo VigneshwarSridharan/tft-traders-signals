@@ -9,5 +9,6 @@ import { EmailMessagesService } from './email-messages.service';
   imports: [AuthModule, SendModule, SettingsModule],
   controllers: [EmailMessagesController],
   providers: [EmailMessagesService],
+  exports: [EmailMessagesService],
 })
 export class EmailMessagesModule {}
