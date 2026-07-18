@@ -54,6 +54,11 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(300_000),
+  ENGAGEMENT_ROLLUP_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(300_000),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

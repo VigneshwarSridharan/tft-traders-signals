@@ -10,6 +10,7 @@ export * from "./custom-field-type";
 export * from "./custom-field-def";
 export * from "./tag";
 export * from "./customer";
+export * from "./customer-timeline";
 export * from "./template-status";
 export * from "./template";
 export * from "./email-message";

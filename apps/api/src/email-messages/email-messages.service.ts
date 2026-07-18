@@ -11,6 +11,7 @@ import type {
   ComposeSendResponse,
   ComposeTestSendResponse,
   EmailMessageSummary,
+  FollowUpDraftResponse,
   UserRole,
 } from '@tft/shared';
 import type { EnvConfig } from '../config/env.validation';
@@ -24,6 +25,7 @@ import { EmailLinksRepository } from '../database/email-links.repository';
 import { EmailMessagesRepository } from '../database/email-messages.repository';
 import { ScheduledSendsRepository } from '../database/scheduled-sends.repository';
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
+import { TemplateCategoriesRepository } from '../database/template-categories.repository';
 import { TemplatesRepository } from '../database/templates.repository';
 import { EmailSenderService } from '../send/email-sender.service';
 import { SendQueueService } from '../send/send-queue.service';
@@ -71,6 +73,7 @@ export class EmailMessagesService {
     private readonly scheduledSendsRepository: ScheduledSendsRepository,
     private readonly configService: ConfigService<EnvConfig, true>,
     private readonly emailSenderService: EmailSenderService,
+    private readonly templateCategoriesRepository: TemplateCategoriesRepository,
   ) {}
 
   async get(id: string): Promise<EmailMessageSummary> {
@@ -98,6 +101,34 @@ export class EmailMessagesService {
       throw new BadRequestException(
         `Sender account is ${senderAccount.status} and cannot send`,
       );
+    }
+
+    let threading: {
+      parentMessageId: string;
+      inReplyToHeader: string;
+      referencesHeader: string;
+    } | null = null;
+    if (request.parentMessageId) {
+      const parent = await this.emailMessagesRepository.findById(
+        request.parentMessageId,
+      );
+      if (!parent) {
+        throw new BadRequestException('Unknown parent message for follow-up');
+      }
+      if (!parent.message_id_header) {
+        throw new BadRequestException(
+          'Parent message has no Message-ID to thread against',
+        );
+      }
+      // References grows one hop per reply (RFC 5322 §3.6.4): the parent's
+      // own references plus its Message-ID, oldest-first.
+      threading = {
+        parentMessageId: parent.id,
+        inReplyToHeader: parent.message_id_header,
+        referencesHeader: [parent.references_header, parent.message_id_header]
+          .filter((value): value is string => Boolean(value))
+          .join(' '),
+      };
     }
 
     let subjectTemplate: string;
@@ -274,6 +305,10 @@ export class EmailMessagesService {
         trackingEnabled,
         status: request.scheduledFor ? 'scheduled' : 'queued',
         queuedAt: request.scheduledFor ? null : new Date(),
+        parentMessageId: threading?.parentMessageId ?? null,
+        inReplyToHeader: threading?.inReplyToHeader ?? null,
+        referencesHeader: threading?.referencesHeader ?? null,
+        followUpDays: request.followUpDays ?? null,
       });
 
       for (const link of linksToPersist) {
@@ -451,5 +486,43 @@ export class EmailMessagesService {
           hourlyUsed: usage.hourlyUsed,
         };
       });
+  }
+
+  /**
+   * Everything the compose UI needs to pre-fill a one-click follow-up: the
+   * same customer and sender account as the original message, plus a
+   * starting template from the seeded "Follow-up" category — its
+   * `defaultTemplateId` if one is set, otherwise the first active template
+   * in that category, or none if the category is empty.
+   */
+  async getFollowUpDraft(messageId: string): Promise<FollowUpDraftResponse> {
+    const message = await this.emailMessagesRepository.findById(messageId);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+
+    const followUpCategory =
+      await this.templateCategoriesRepository.findByName('Follow-up');
+    let templateId: string | null = null;
+    if (followUpCategory) {
+      if (followUpCategory.default_template_id) {
+        templateId = followUpCategory.default_template_id;
+      } else {
+        const candidates = await this.templatesRepository.list({
+          categoryId: followUpCategory.id,
+          status: 'active',
+        });
+        templateId = candidates[0]?.id ?? null;
+      }
+    }
+
+    return {
+      parentMessageId: message.id,
+      customerId: message.customer_id,
+      senderAccountId: message.sender_account_id,
+      categoryId: followUpCategory?.id ?? null,
+      templateId,
+      subject: `Re: ${message.subject ?? '(no subject)'}`,
+    };
   }
 }

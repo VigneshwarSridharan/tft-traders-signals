@@ -18,6 +18,7 @@ import type {
   CsvImportResult,
   CustomerListResponse,
   CustomerSummary,
+  CustomerTimelineResponse,
 } from '@tft/shared';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -63,6 +64,13 @@ export class CustomersController {
   @Get(':id')
   get(@Param('id', ParseUUIDPipe) id: string): Promise<CustomerSummary> {
     return this.customersService.get(id);
+  }
+
+  @Get(':id/timeline')
+  getTimeline(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<CustomerTimelineResponse> {
+    return this.customersService.getTimeline(id);
   }
 
   @Post()

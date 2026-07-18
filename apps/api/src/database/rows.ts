@@ -176,6 +176,11 @@ export interface EmailMessageRow {
   replied_at: Date | null;
   bounce_type: 'none' | 'hard' | 'soft';
   unsubscribed_at: Date | null;
+  parent_message_id: string | null;
+  in_reply_to_header: string | null;
+  references_header: string | null;
+  follow_up_days: number | null;
+  follow_up_notified_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }

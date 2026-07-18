@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useSearchParams } from "next/navigation";
 import type {
   ComposeSenderAccountOption,
   ComposeSendRequest,
@@ -9,6 +17,7 @@ import type {
   CustomerListResponse,
   CustomerSummary,
   EmailTemplateSummary,
+  FollowUpDraftResponse,
   MergeFieldOption,
   TemplateCategorySummary,
   TemplatePreviewResponse,
@@ -74,8 +83,10 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function ComposePage() {
+function ComposeForm() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const followUpTo = searchParams.get("followUpTo");
 
   const [senderAccounts, setSenderAccounts] = useState<
     ComposeSenderAccountOption[]
@@ -116,6 +127,12 @@ export default function ComposePage() {
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+
+  const [followUpDays, setFollowUpDays] = useState("");
+  const [parentMessageId, setParentMessageId] = useState<string | undefined>(
+    undefined,
+  );
+  const [followUpApplied, setFollowUpApplied] = useState(false);
 
   const [attachments, setAttachments] = useState<File[]>([]);
 
@@ -210,6 +227,48 @@ export default function ComposePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run once templates arrive
   }, [hydrated, templates]);
+
+  // One-click follow-up: `?followUpTo=<messageId>` pre-fills the same
+  // customer, sender account, and (if the Follow-up category has one) a
+  // starting template — overriding whatever the localStorage draft restored.
+  useEffect(() => {
+    if (!hydrated || !followUpTo || followUpApplied) return;
+    if (categories.length === 0) return; // wait for reference data to load
+    let cancelled = false;
+    void (async () => {
+      try {
+        const draft = await apiFetch<FollowUpDraftResponse>(
+          `/email-messages/${followUpTo}/follow-up-draft`,
+        );
+        const customer = await apiFetch<CustomerSummary>(
+          `/customers/${draft.customerId}`,
+        );
+        if (cancelled) return;
+        setParentMessageId(draft.parentMessageId);
+        setSenderAccountId(draft.senderAccountId);
+        setSelectedCustomers(new Map([[customer.id, customer]]));
+        setCategoryId(draft.categoryId ?? "");
+        if (draft.templateId) {
+          applyTemplateSelection(draft.templateId);
+        } else {
+          applyTemplateSelection(BLANK_TEMPLATE_VALUE);
+          setSubject(draft.subject);
+        }
+      } catch (err) {
+        setLoadError(
+          err instanceof ApiError
+            ? err.message
+            : "Failed to load follow-up draft",
+        );
+      } finally {
+        if (!cancelled) setFollowUpApplied(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run as reference data arrives
+  }, [hydrated, followUpTo, followUpApplied, categories]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -479,6 +538,8 @@ export default function ComposePage() {
     setScheduleEnabled(EMPTY_DRAFT.scheduleEnabled);
     setScheduledDate(EMPTY_DRAFT.scheduledDate);
     setScheduledTime(EMPTY_DRAFT.scheduledTime);
+    setFollowUpDays("");
+    setParentMessageId(undefined);
     setAttachments([]);
     setPreview(null);
     setPreviewCustomerId("");
@@ -532,6 +593,8 @@ export default function ComposePage() {
         timezone: scheduledFor
           ? Intl.DateTimeFormat().resolvedOptions().timeZone
           : undefined,
+        parentMessageId,
+        followUpDays: followUpDays ? Number(followUpDays) : undefined,
         ...buildContentPayload(),
       };
       const formData = new FormData();
@@ -930,8 +993,32 @@ export default function ComposePage() {
               Override suppression / unsubscribe for this send
             </label>
           )}
+          <div className="flex items-center gap-2 pt-1">
+            <label className="text-sm text-zinc-700 dark:text-zinc-300">
+              Remind me if no reply/open within
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={90}
+              value={followUpDays}
+              onChange={(e) => setFollowUpDays(e.target.value)}
+              placeholder="e.g. 3"
+              className={`${INPUT_CLASS} w-20`}
+            />
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">
+              day(s) (optional)
+            </span>
+          </div>
         </div>
       </section>
+
+      {parentMessageId && (
+        <p className="text-sm text-amber-600 dark:text-amber-400">
+          Following up on a previous message — this send will be threaded
+          (In-Reply-To) against it.
+        </p>
+      )}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
         <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
@@ -1039,6 +1126,14 @@ export default function ComposePage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function ComposePage() {
+  return (
+    <Suspense fallback={null}>
+      <ComposeForm />
+    </Suspense>
   );
 }
 

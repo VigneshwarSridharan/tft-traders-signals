@@ -11,6 +11,7 @@ const TYPE_LABELS: Record<NotificationType, string> = {
   bounce: "Bounce",
   send_failed: "Send failed",
   quota_warning: "Quota warning",
+  follow_up_due: "Follow-up due",
 };
 
 const TYPE_ORDER: NotificationType[] = [
@@ -20,6 +21,7 @@ const TYPE_ORDER: NotificationType[] = [
   "bounce",
   "send_failed",
   "quota_warning",
+  "follow_up_due",
 ];
 
 export default function NotificationPreferencesPage() {

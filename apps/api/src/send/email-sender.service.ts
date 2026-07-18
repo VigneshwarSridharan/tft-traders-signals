@@ -132,6 +132,10 @@ export class EmailSenderService {
         html: message.body_html_rendered ?? undefined,
         text: message.body_text_rendered ?? undefined,
         messageId: message.message_id_header ?? undefined,
+        // Threads a follow-up against its parent (Task 18) — mirrors how
+        // apps/api/src/inbound reads these same two headers on the way in.
+        inReplyTo: message.in_reply_to_header ?? undefined,
+        references: message.references_header ?? undefined,
         attachments: attachmentPayload,
       });
 

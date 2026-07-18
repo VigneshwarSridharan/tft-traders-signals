@@ -7,7 +7,79 @@ import { CustomersService } from './customers.service';
 import { CustomersRepository } from '../database/customers.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
 import { TagsRepository } from '../database/tags.repository';
-import type { CustomerRow, CustomFieldDefRow } from '../database/rows';
+import { EmailMessagesRepository } from '../database/email-messages.repository';
+import { TrackingEventsRepository } from '../database/tracking-events.repository';
+import type {
+  CustomerRow,
+  CustomFieldDefRow,
+  EmailMessageRow,
+  TrackingEventRow,
+} from '../database/rows';
+
+function buildMessageRow(
+  overrides: Partial<EmailMessageRow> = {},
+): EmailMessageRow {
+  return {
+    id: 'message-1',
+    public_token: 'token',
+    sender_account_id: 'sender-1',
+    customer_id: 'customer-1',
+    template_version_id: null,
+    sent_by: 'user-1',
+    to_email: 'jane@acme.com',
+    to_name: 'Jane Doe',
+    subject: 'Your quotation',
+    body_html_rendered: '<p>Hi</p>',
+    body_text_rendered: 'Hi',
+    message_id_header: '<abc@test.local>',
+    tracking_enabled: true,
+    status: 'sent',
+    smtp_response: '250 OK',
+    queued_at: new Date('2026-07-01T00:00:00Z'),
+    sent_at: new Date('2026-07-01T00:00:00Z'),
+    open_count: 0,
+    unique_open_hint: false,
+    first_opened_at: null,
+    last_opened_at: null,
+    click_count: 0,
+    first_clicked_at: null,
+    last_clicked_at: null,
+    replied_at: null,
+    bounce_type: 'none',
+    unsubscribed_at: null,
+    parent_message_id: null,
+    in_reply_to_header: null,
+    references_header: null,
+    follow_up_days: null,
+    follow_up_notified_at: null,
+    created_at: new Date('2026-07-01T00:00:00Z'),
+    updated_at: new Date('2026-07-01T00:00:00Z'),
+    ...overrides,
+  };
+}
+
+function buildTrackingEventRow(
+  overrides: Partial<TrackingEventRow> = {},
+): TrackingEventRow {
+  return {
+    id: 'event-1',
+    message_id: 'message-1',
+    link_id: null,
+    event_type: 'open',
+    occurred_at: new Date('2026-07-02T00:00:00Z'),
+    ip: null,
+    user_agent: null,
+    device_type: null,
+    os: null,
+    browser: null,
+    geo_country: null,
+    geo_city: null,
+    is_bot: false,
+    is_proxy: false,
+    metadata: {},
+    ...overrides,
+  };
+}
 
 function buildCustomerRow(overrides: Partial<CustomerRow> = {}): CustomerRow {
   return {
@@ -45,6 +117,8 @@ describe('CustomersService', () => {
   let customersRepository: jest.Mocked<CustomersRepository>;
   let customFieldDefsRepository: jest.Mocked<CustomFieldDefsRepository>;
   let tagsRepository: jest.Mocked<TagsRepository>;
+  let emailMessagesRepository: jest.Mocked<EmailMessagesRepository>;
+  let trackingEventsRepository: jest.Mocked<TrackingEventsRepository>;
 
   beforeEach(() => {
     customersRepository = {
@@ -84,10 +158,20 @@ describe('CustomersService', () => {
       removeTagging: jest.fn(),
     } as unknown as jest.Mocked<TagsRepository>;
 
+    emailMessagesRepository = {
+      listForCustomer: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<EmailMessagesRepository>;
+
+    trackingEventsRepository = {
+      listForCustomer: jest.fn().mockResolvedValue([]),
+    } as unknown as jest.Mocked<TrackingEventsRepository>;
+
     service = new CustomersService(
       customersRepository,
       customFieldDefsRepository,
       tagsRepository,
+      emailMessagesRepository,
+      trackingEventsRepository,
     );
   });
 
@@ -206,6 +290,50 @@ describe('CustomersService', () => {
         'field-1',
         'new-value',
       );
+    });
+  });
+
+  describe('getTimeline', () => {
+    it('throws when the customer does not exist', async () => {
+      customersRepository.findById.mockResolvedValue(null);
+      await expect(service.getTimeline('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('merges sends and tracking events into one chronological (newest first) timeline', async () => {
+      customersRepository.findById.mockResolvedValue(buildCustomerRow());
+      emailMessagesRepository.listForCustomer.mockResolvedValue([
+        buildMessageRow({
+          id: 'message-1',
+          subject: 'Your quotation',
+          sent_at: new Date('2026-07-01T00:00:00Z'),
+        }),
+      ]);
+      trackingEventsRepository.listForCustomer.mockResolvedValue([
+        buildTrackingEventRow({
+          id: 'event-open',
+          message_id: 'message-1',
+          event_type: 'open',
+          occurred_at: new Date('2026-07-02T00:00:00Z'),
+        }),
+        buildTrackingEventRow({
+          id: 'event-reply',
+          message_id: 'message-1',
+          event_type: 'reply',
+          occurred_at: new Date('2026-07-03T00:00:00Z'),
+        }),
+      ]);
+
+      const timeline = await service.getTimeline('customer-1');
+
+      expect(timeline.items.map((item) => item.type)).toEqual([
+        'reply',
+        'open',
+        'sent',
+      ]);
+      expect(timeline.items[0].subject).toBe('Your quotation');
+      expect(timeline.items[2].messageId).toBe('message-1');
     });
   });
 

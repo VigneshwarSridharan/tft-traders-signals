@@ -22,6 +22,7 @@ import { ScheduledSendsModule } from './scheduled-sends/scheduled-sends.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { EngagementModule } from './engagement/engagement.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AnalyticsModule,
     RealtimeModule,
     NotificationsModule,
+    EngagementModule,
   ],
   controllers: [AppController],
   providers: [AppService],

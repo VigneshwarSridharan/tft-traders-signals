@@ -37,6 +37,10 @@ export interface ComposeSendRequest {
   overrideSuppression?: boolean;
   scheduledFor?: string;
   timezone?: string;
+  /** Threads this send against a prior message (In-Reply-To/References); requires exactly one recipient. */
+  parentMessageId?: string;
+  /** "Remind me if no reply/open in X days" — the per-send follow-up rule (FR-8.7). */
+  followUpDays?: number;
 }
 
 export interface ComposeRecipientResult {
@@ -75,4 +79,18 @@ export interface ComposeTestSendResponse {
   to: string;
   smtpResponse: string;
   unresolvedPlaceholders: string[];
+}
+
+/**
+ * One-click follow-up compose: everything needed to pre-fill the compose
+ * form for a reply to `parentMessageId`, addressed to the same customer and
+ * (if the seeded "Follow-up" template category has one) a starting template.
+ */
+export interface FollowUpDraftResponse {
+  parentMessageId: string;
+  customerId: string;
+  senderAccountId: string;
+  categoryId: string | null;
+  templateId: string | null;
+  subject: string;
 }

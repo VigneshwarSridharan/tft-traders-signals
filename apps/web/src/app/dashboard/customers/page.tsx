@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import type {
   CreateCustomerRequest,
   CsvImportResult,
@@ -476,7 +477,14 @@ export default function CustomersPage() {
                 );
                 return (
                   <tr key={customer.id} className="align-top text-zinc-800 dark:text-zinc-200">
-                    <td className="px-3 py-2">{customer.name}</td>
+                    <td className="px-3 py-2">
+                      <Link
+                        href={`/dashboard/customers/${customer.id}`}
+                        className="underline hover:text-zinc-950 dark:hover:text-white"
+                      >
+                        {customer.name}
+                      </Link>
+                    </td>
                     <td className="px-3 py-2">{customer.email}</td>
                     <td className="px-3 py-2">{customer.company ?? "—"}</td>
                     <td className="px-3 py-2">

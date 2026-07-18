@@ -7,6 +7,7 @@ import { ScheduledSendsRepository } from '../database/scheduled-sends.repository
 import { SenderAccountsRepository } from '../database/sender-accounts.repository';
 import { CustomersRepository } from '../database/customers.repository';
 import { CustomFieldDefsRepository } from '../database/custom-field-defs.repository';
+import { TemplateCategoriesRepository } from '../database/template-categories.repository';
 import { TemplatesRepository } from '../database/templates.repository';
 import { EmailSenderService } from '../send/email-sender.service';
 import { SendQueueService } from '../send/send-queue.service';
@@ -89,6 +90,11 @@ function buildMessageRow(
     replied_at: null,
     bounce_type: 'none',
     unsubscribed_at: null,
+    parent_message_id: null,
+    in_reply_to_header: null,
+    references_header: null,
+    follow_up_days: null,
+    follow_up_notified_at: null,
     created_at: new Date(),
     updated_at: new Date(),
     ...overrides,
@@ -107,6 +113,7 @@ describe('EmailMessagesService', () => {
   let scheduledSendsRepository: jest.Mocked<ScheduledSendsRepository>;
   let configService: ConfigService<EnvConfig, true>;
   let emailSenderService: jest.Mocked<EmailSenderService>;
+  let templateCategoriesRepository: jest.Mocked<TemplateCategoriesRepository>;
 
   beforeEach(() => {
     emailMessagesRepository = {
@@ -163,6 +170,10 @@ describe('EmailMessagesService', () => {
       sendNow: jest.fn().mockResolvedValue('250 OK'),
     } as unknown as jest.Mocked<EmailSenderService>;
 
+    templateCategoriesRepository = {
+      findByName: jest.fn().mockResolvedValue(null),
+    } as unknown as jest.Mocked<TemplateCategoriesRepository>;
+
     service = new EmailMessagesService(
       emailMessagesRepository,
       emailLinksRepository,
@@ -174,6 +185,7 @@ describe('EmailMessagesService', () => {
       scheduledSendsRepository,
       configService,
       emailSenderService,
+      templateCategoriesRepository,
     );
   });
 
@@ -380,6 +392,133 @@ describe('EmailMessagesService', () => {
     expect(emailMessagesRepository.create).toHaveBeenCalledWith(
       expect.objectContaining({ trackingEnabled: false }),
     );
+  });
+
+  describe('follow-up threading', () => {
+    it('rejects a parentMessageId that does not exist', async () => {
+      emailMessagesRepository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.compose(
+          {
+            senderAccountId: 'sender-1',
+            customerIds: ['customer-1'],
+            subject: 'Hi',
+            bodyHtml: '<p>Hi</p>',
+            parentMessageId: 'missing-parent',
+          },
+          [],
+          'user-1',
+          'admin',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(emailMessagesRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('stores In-Reply-To/References and follow-up days when replying to a parent message', async () => {
+      emailMessagesRepository.findById.mockResolvedValue(
+        buildMessageRow({
+          id: 'parent-1',
+          message_id_header: '<parent@test.local>',
+          references_header: '<grandparent@test.local>',
+        }),
+      );
+
+      await service.compose(
+        {
+          senderAccountId: 'sender-1',
+          customerIds: ['customer-1'],
+          subject: 'Following up',
+          bodyHtml: '<p>Any update?</p>',
+          parentMessageId: 'parent-1',
+          followUpDays: 3,
+        },
+        [],
+        'user-1',
+        'admin',
+      );
+
+      expect(emailMessagesRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          parentMessageId: 'parent-1',
+          inReplyToHeader: '<parent@test.local>',
+          referencesHeader: '<grandparent@test.local> <parent@test.local>',
+          followUpDays: 3,
+        }),
+      );
+    });
+
+    it('rejects a parent message with no Message-ID to thread against', async () => {
+      emailMessagesRepository.findById.mockResolvedValue(
+        buildMessageRow({ id: 'parent-1', message_id_header: null }),
+      );
+
+      await expect(
+        service.compose(
+          {
+            senderAccountId: 'sender-1',
+            customerIds: ['customer-1'],
+            subject: 'Hi',
+            bodyHtml: '<p>Hi</p>',
+            parentMessageId: 'parent-1',
+          },
+          [],
+          'user-1',
+          'admin',
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('getFollowUpDraft', () => {
+    it('throws when the message does not exist', async () => {
+      emailMessagesRepository.findById.mockResolvedValue(null);
+
+      await expect(service.getFollowUpDraft('missing')).rejects.toThrow(
+        'Message not found',
+      );
+    });
+
+    it('prefills the same customer, sender account, and a "Re:" subject, using the Follow-up category default template when set', async () => {
+      emailMessagesRepository.findById.mockResolvedValue(
+        buildMessageRow({
+          id: 'parent-1',
+          customer_id: 'customer-1',
+          sender_account_id: 'sender-1',
+          subject: 'Your quotation',
+        }),
+      );
+      templateCategoriesRepository.findByName.mockResolvedValue({
+        id: 'category-follow-up',
+        name: 'Follow-up',
+        default_template_id: 'template-1',
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      const draft = await service.getFollowUpDraft('parent-1');
+
+      expect(draft).toEqual({
+        parentMessageId: 'parent-1',
+        customerId: 'customer-1',
+        senderAccountId: 'sender-1',
+        categoryId: 'category-follow-up',
+        templateId: 'template-1',
+        subject: 'Re: Your quotation',
+      });
+    });
+
+    it('falls back to no template when the Follow-up category has none configured', async () => {
+      emailMessagesRepository.findById.mockResolvedValue(
+        buildMessageRow({ id: 'parent-1' }),
+      );
+      templateCategoriesRepository.findByName.mockResolvedValue(null);
+
+      const draft = await service.getFollowUpDraft('parent-1');
+
+      expect(draft.categoryId).toBeNull();
+      expect(draft.templateId).toBeNull();
+    });
   });
 
   it('rejects sending from an inactive sender account', async () => {
