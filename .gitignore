@@ -33,3 +33,6 @@ docker/data/
 
 # local redis snapshot (created by running redis-server locally in dev)
 dump.rdb
+
+# scripts/backup.sh's default output directory
+/backups/

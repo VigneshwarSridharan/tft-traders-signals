@@ -269,16 +269,33 @@ platform and sees opens, clicks, and bounces per message.
   status; a test webhook receiver gets a signed `opened` payload and signature
   verifies.
 
-### ⬜ Task 24 — Production readiness & polish (M)
+### 🟨 Task 24 — Production readiness & polish (M)
 **Depends on:** all
 - Dark-mode and mobile polish pass across all screens; empty/loading/error
-  states.
-- Ops: structured logging, error tracking (Sentry-compatible), uptime/health
-  checks, Postgres backup + tested restore runbook, deploy runbook, tracking-
-  domain DNS/TLS setup guide, seed-list deliverability spot-check checklist.
-- Load test tracking endpoints (scanner-storm scenario) and send queue.
-- **Accept:** runbooks verified by a clean-VM deployment; tracking endpoint
-  p95 <100 ms under load test; backup restore drill passes.
+  states. ✅ Audited all 16 dashboard pages + shared components; coverage
+  was already broad, one real gap fixed (webhook delivery log's loading/
+  empty rows missing a `dark:` text color).
+- Ops: ✅ structured logging (`nestjs-pino`, JSON in prod), ✅ error tracking
+  (`@sentry/nestjs` + `@sentry/nextjs`, opt-in via `SENTRY_DSN`), ✅ deepened
+  health checks (`/health` liveness, `/health/ready` DB+Redis readiness, a
+  dedicated worker health endpoint, docker-compose healthchecks for
+  api/worker/web), ✅ Postgres backup + restore scripts
+  ([docs/BACKUP.md](./BACKUP.md)), ✅ deploy runbook
+  ([docs/DEPLOY.md](./DEPLOY.md)), ✅ tracking-domain DNS/TLS guide (already
+  in README, predates this task), ✅ deliverability spot-check checklist
+  ([docs/DELIVERABILITY_CHECKLIST.md](./DELIVERABILITY_CHECKLIST.md)).
+- ✅ Load-test tooling for the tracking endpoints (scanner-storm scenario)
+  and the send queue (`scripts/load-test/`, see its README).
+- **Accept:** the tooling and runbooks are built, and everything
+  scriptable was verified (lint/typecheck/build/unit tests green; both
+  load-test scripts smoke-tested against mock servers). What's **not yet
+  done**, because it requires a real deployment target this environment
+  doesn't have: an actual clean-VM run of docs/DEPLOY.md, an actual
+  `scripts/backup.sh` → `scripts/restore.sh` drill against a live database
+  (docs/BACKUP.md's drill log is still empty), and running
+  `scripts/load-test/tracking.js` against a real deployed instance to
+  confirm the p95 <100 ms target. Whoever deploys this next should run
+  those three and check them off here.
 
 ---
 

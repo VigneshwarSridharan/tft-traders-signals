@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_FILTER } from '@nestjs/core';
+import { LoggerModule } from 'nestjs-pino';
+import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { validateEnv } from './config/env.validation';
+import { validateEnv, type EnvConfig } from './config/env.validation';
+import { buildPinoOptions } from './logging/pino-options';
 import { DatabaseModule } from './database/database.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
@@ -38,6 +42,13 @@ import { PublicApiModule } from './public-api/public-api.module';
       isGlobal: true,
       validate: validateEnv,
     }),
+    // Must import before any other module — see src/instrument.ts.
+    SentryModule.forRoot(),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<EnvConfig, true>) =>
+        buildPinoOptions(configService),
+    }),
     DatabaseModule,
     HealthModule,
     AuthModule,
@@ -68,6 +79,9 @@ import { PublicApiModule } from './public-api/public-api.module';
     PublicApiModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
+  ],
 })
 export class AppModule {}

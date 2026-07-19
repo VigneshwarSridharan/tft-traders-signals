@@ -13,9 +13,16 @@
     "build": "npm run build:shared && npm run build --workspace apps/api && npm run build --workspace apps/web",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run build:shared && npm run typecheck --workspace apps/api && npm run typecheck --workspace apps/web",
-    "test": "npm run build:shared && npm run test --workspaces --if-present"
+    "test": "npm run build:shared && npm run test --workspaces --if-present",
+    "backup": "bash scripts/backup.sh",
+    "restore": "bash scripts/restore.sh",
+    "load-test:tracking": "node scripts/load-test/tracking.js",
+    "load-test:send-queue": "node scripts/load-test/send-queue.js"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "autocannon": "^8.0.0"
   }
 }

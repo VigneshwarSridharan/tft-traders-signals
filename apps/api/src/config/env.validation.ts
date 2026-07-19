@@ -88,6 +88,17 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(10),
+  WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(3002),
+  LOG_LEVEL: z
+    .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal'])
+    .default('info'),
+  // Unset disables Sentry entirely — see apps/api/src/observability/sentry.ts.
+  SENTRY_DSN: z
+    .string()
+    .min(1)
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

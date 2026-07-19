@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import type { HealthCheckResponse } from '@tft/shared';
+import type { HealthCheckResponse, ReadinessCheckResponse } from '@tft/shared';
 import { AppModule } from './../src/app.module';
 
 describe('HealthController (e2e)', () => {
@@ -27,6 +27,20 @@ describe('HealthController (e2e)', () => {
       status: 'ok',
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect.any() is inherently `any` in @types/jest
       timestamp: expect.any(String),
+    });
+  });
+
+  it('/health/ready (GET)', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/health/ready')
+      .expect(200);
+    const body = response.body as ReadinessCheckResponse;
+
+    expect(body).toEqual({
+      status: 'ok',
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- expect.any() is inherently `any` in @types/jest
+      timestamp: expect.any(String),
+      checks: { database: 'ok', redis: 'ok' },
     });
   });
 
