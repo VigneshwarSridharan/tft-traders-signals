@@ -9,9 +9,7 @@ import { ReadinessService } from './readiness.service';
  * HTTP server — it has no port for `docker healthcheck` to hit. This gives
  * it one, reusing the same DB/Redis checks as the api's `/health/ready`.
  */
-export function startWorkerHealthServer(
-  app: INestApplicationContext,
-): Server {
+export function startWorkerHealthServer(app: INestApplicationContext): Server {
   const configService = app.get(ConfigService<EnvConfig, true>);
   const readinessService = app.get(ReadinessService);
   const port = configService.get('WORKER_HEALTH_PORT', { infer: true });

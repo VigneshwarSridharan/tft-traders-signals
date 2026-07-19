@@ -424,7 +424,10 @@ function DeliveryLog({ endpointId }: { endpointId: string }) {
         <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
           {loading && (
             <tr>
-              <td colSpan={5} className="px-2 py-3 text-center text-zinc-500">
+              <td
+                colSpan={5}
+                className="px-2 py-3 text-center text-zinc-500 dark:text-zinc-400"
+              >
                 Loading…
               </td>
             </tr>
@@ -441,7 +444,10 @@ function DeliveryLog({ endpointId }: { endpointId: string }) {
           )}
           {!loading && !error && deliveries.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-2 py-3 text-center text-zinc-500">
+              <td
+                colSpan={5}
+                className="px-2 py-3 text-center text-zinc-500 dark:text-zinc-400"
+              >
                 No deliveries yet.
               </td>
             </tr>
