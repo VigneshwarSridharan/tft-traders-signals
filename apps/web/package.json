@@ -11,6 +11,7 @@
     "test": "echo \"no tests yet\" && exit 0"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.66.0",
     "@tft/shared": "*",
     "@tiptap/react": "^3.27.2",
     "@tiptap/starter-kit": "^3.27.2",
