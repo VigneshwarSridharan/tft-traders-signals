@@ -222,6 +222,11 @@ export class EmailSenderService {
     subject: string;
     html?: string | null;
     text?: string | null;
+    attachments?: {
+      filename: string;
+      content: Buffer;
+      contentType?: string;
+    }[];
   }): Promise<string> {
     const { senderAccount } = params;
     const password = decryptSecret(
@@ -246,6 +251,7 @@ export class EmailSenderService {
         subject: params.subject,
         html: params.html ?? undefined,
         text: params.text ?? undefined,
+        attachments: params.attachments,
       });
       return String(info.response ?? '250 OK');
     } finally {
