@@ -75,6 +75,11 @@ const NAV_ITEMS: { href: string; label: string; roles: UserRole[] }[] = [
     roles: ["admin"],
   },
   {
+    href: "/dashboard/report-subscriptions",
+    label: "Report Subscriptions",
+    roles: ["admin", "manager"],
+  },
+  {
     href: "/dashboard/settings",
     label: "Settings",
     roles: ["admin"],

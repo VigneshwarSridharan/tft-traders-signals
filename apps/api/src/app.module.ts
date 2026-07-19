@@ -35,6 +35,7 @@ import { ReportsModule } from './reports/reports.module';
 import { ApiKeysModule } from './api-keys/api-keys.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { PublicApiModule } from './public-api/public-api.module';
+import { ReportSubscriptionsModule } from './report-subscriptions/report-subscriptions.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { PublicApiModule } from './public-api/public-api.module';
     ApiKeysModule,
     WebhooksModule,
     PublicApiModule,
+    ReportSubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [

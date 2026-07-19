@@ -362,6 +362,23 @@ delivered_at, next_retry_at` — retries with backoff, max 5.
 `key text PK, value jsonb` — retention windows, tracking domain, physical
 address for CAN-SPAM footer, feature flags.
 
+#### `report_subscriptions`
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid PK | |
+| created_by | uuid FK→users | owner; also scopes a `sent_mail` subscription's export the same way its owner's role would |
+| name | text NOT NULL | |
+| kind | enum (analytics_pdf, sent_mail) | which Task 22 report to regenerate |
+| format | enum (pdf, csv, xlsx) | pdf for analytics_pdf, csv/xlsx for sent_mail |
+| filter_params | jsonb | report filters (senderAccountId, templateId, tagId, status, lastDays) |
+| cadence | enum (daily, weekly, monthly) | |
+| hour_of_day / day_of_week / day_of_month | int | UTC schedule fields; day_of_week required for weekly, day_of_month (1–28) for monthly |
+| recipient_emails | text[] NOT NULL | |
+| sender_account_id | uuid FK→sender_accounts | account the report is emailed from |
+| is_active | boolean | |
+| last_run_at / last_run_error | timestamptz / text | |
+| next_run_at | timestamptz NOT NULL | indexed; the worker scans `next_run_at <= now() AND is_active` |
+
 ---
 
 ## 3. Key design decisions

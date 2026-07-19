@@ -28,3 +28,4 @@ export * from "./settings";
 export * from "./customer-gdpr";
 export * from "./api-key";
 export * from "./webhook";
+export * from "./report-subscription";

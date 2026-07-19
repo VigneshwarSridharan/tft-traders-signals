@@ -297,13 +297,31 @@ platform and sees opens, clicks, and bounces per message.
   confirm the p95 <100 ms target. Whoever deploys this next should run
   those three and check them off here.
 
+### ✅ Task 25 — Scheduled/emailed periodic reports (M)
+**Depends on:** 22 (exports & reports), 23 (public API — none directly, but reuses its module patterns)
+- `report_subscriptions` table (owner, report kind [analytics PDF / sent-mail
+  export], filters, cadence + hour/day-of-week/day-of-month, recipients,
+  sending account, active flag, last/next run).
+- Admin/manager CRUD API (`/report-subscriptions`) reusing Task 22's
+  `ReportsService` export/PDF builders; a `run-now` action enqueues an
+  immediate run through the same worker path as the hourly scheduler.
+- BullMQ hourly worker scans due subscriptions, regenerates the report,
+  and emails it as an attachment via the owning sender account
+  (`EmailSenderService.sendNow`, extended to support attachments); failures
+  are recorded per-subscription (`last_run_error`) without blocking others.
+- Dashboard page (Report Subscriptions, admin/manager) to create/manage
+  subscriptions and trigger a manual run.
+- **Accept:** a weekly analytics-PDF subscription and a daily sent-mail-CSV
+  subscription both fire on schedule and land in the inbox as attachments;
+  "run now" queues an out-of-band run; disabling a sender account surfaces
+  as a run failure without breaking other subscriptions.
+
 ---
 
 ## Suggested v2 backlog (not scheduled)
 
 - Drag-and-drop email builder (block-based).
 - Zoho Mail REST API integration (OAuth2, thread sync) replacing app passwords.
-- Scheduled/emailed periodic reports.
 - Sequences (multi-step automated follow-up campaigns).
 - A/B subject-line testing.
 - Browser extension / Zoho Mail add-on for tracking from the native UI.

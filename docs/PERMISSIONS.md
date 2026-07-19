@@ -54,6 +54,7 @@ list, template list), not an oversight.
 | Public unsubscribe page/one-click endpoint | n/a — unauthenticated by design | | | |
 | API keys (`/api-keys`) — create/list/revoke | ✅ (all users') | ✅ (**own only**) | ✅ (**own only**) | ✅ (**own only**) |
 | Webhook endpoints (`/webhook-endpoints`) — CRUD, test-send, delivery log | ✅ | ❌ | ❌ | ❌ |
+| Report subscriptions (`/report-subscriptions`) — CRUD, run-now | ✅ | ✅ | ❌ | ❌ |
 | Public API (`/v1/*`) — API-key-authenticated, not JWT-cookie | Gated by the key's own scopes (see below) *and* its owning user's role — the usual `@Roles()` matrix above still applies per route (e.g. a `send`-scoped key owned by a viewer still can't send). | | | |
 
 API keys mirror the "own only" pattern used elsewhere: non-admins list and

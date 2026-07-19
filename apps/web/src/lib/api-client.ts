@@ -71,9 +71,13 @@ export async function apiFetch<T>(
     throw new ApiError(response.status, message);
   }
 
-  if (response.status === 204) {
+  // Several endpoints (204 No Content, 202 Accepted from a Promise<void>
+  // controller method) send an empty body — response.json() throws on
+  // that ("Unexpected end of JSON input"), so check for content first
+  // rather than special-casing individual status codes.
+  const text = await response.text();
+  if (text.length === 0) {
     return undefined as T;
   }
-
-  return (await response.json()) as T;
+  return JSON.parse(text) as T;
 }

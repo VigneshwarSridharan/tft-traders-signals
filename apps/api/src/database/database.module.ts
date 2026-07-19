@@ -26,6 +26,7 @@ import { SettingsRepository } from './settings.repository';
 import { ApiKeysRepository } from './api-keys.repository';
 import { WebhookEndpointsRepository } from './webhook-endpoints.repository';
 import { WebhookDeliveriesRepository } from './webhook-deliveries.repository';
+import { ReportSubscriptionsRepository } from './report-subscriptions.repository';
 
 @Global()
 @Module({
@@ -63,6 +64,7 @@ import { WebhookDeliveriesRepository } from './webhook-deliveries.repository';
     ApiKeysRepository,
     WebhookEndpointsRepository,
     WebhookDeliveriesRepository,
+    ReportSubscriptionsRepository,
   ],
   exports: [
     PG_POOL,
@@ -89,6 +91,7 @@ import { WebhookDeliveriesRepository } from './webhook-deliveries.repository';
     ApiKeysRepository,
     WebhookEndpointsRepository,
     WebhookDeliveriesRepository,
+    ReportSubscriptionsRepository,
   ],
 })
 export class DatabaseModule implements OnModuleDestroy {

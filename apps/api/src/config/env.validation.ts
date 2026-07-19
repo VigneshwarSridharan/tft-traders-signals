@@ -77,6 +77,11 @@ const envSchema = z.object({
     .int()
     .positive()
     .default(24 * 60 * 60_000),
+  REPORT_SUBSCRIPTION_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60_000),
   PUBLIC_API_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
   PUBLIC_API_RATE_LIMIT_WINDOW_MS: z.coerce
     .number()

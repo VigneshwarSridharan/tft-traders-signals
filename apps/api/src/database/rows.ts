@@ -344,6 +344,27 @@ export interface WebhookDeliveryRow {
   created_at: Date;
 }
 
+export interface ReportSubscriptionRow {
+  id: string;
+  created_by: string;
+  name: string;
+  kind: 'analytics_pdf' | 'sent_mail';
+  format: 'pdf' | 'csv' | 'xlsx';
+  filter_params: Record<string, unknown>;
+  cadence: 'daily' | 'weekly' | 'monthly';
+  hour_of_day: number;
+  day_of_week: number | null;
+  day_of_month: number | null;
+  recipient_emails: string[];
+  sender_account_id: string;
+  is_active: boolean;
+  last_run_at: Date | null;
+  last_run_error: string | null;
+  next_run_at: Date;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface DailyStatsRow {
   id: string;
   day: Date;
