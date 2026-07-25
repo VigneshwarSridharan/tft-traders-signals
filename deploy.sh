@@ -120,7 +120,10 @@ sleep 8
 
 step "Health-checking $API_DOMAIN and $DASHBOARD_DOMAIN"
 API_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$API_DOMAIN/health/ready" || echo 000)"
-DASHBOARD_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$DASHBOARD_DOMAIN/" || echo 000)"
+# -L: "/" legitimately redirects unauthenticated visitors to /login (via
+# /dashboard) — following redirects checks the app actually renders,
+# not just that the first hop returned a 3xx.
+DASHBOARD_CODE="$(curl -s -L -o /dev/null -w '%{http_code}' --max-time 15 "$DASHBOARD_DOMAIN/" || echo 000)"
 
 if [ "$API_CODE" = "200" ] && [ "$DASHBOARD_CODE" = "200" ]; then
   step "DEPLOY OK — api HTTP $API_CODE, dashboard HTTP $DASHBOARD_CODE"
