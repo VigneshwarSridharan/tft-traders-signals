@@ -1,4 +1,7 @@
-import { applyTracking } from './tracking-injection.util';
+import {
+  applyTracking,
+  stripTrackingForPreview,
+} from './tracking-injection.util';
 
 describe('applyTracking', () => {
   const params = {
@@ -54,5 +57,50 @@ describe('applyTracking', () => {
     expect(result.links[0].position).toBe(0);
     expect(result.links[1].position).toBe(1);
     expect(result.links[0].token).not.toBe(result.links[1].token);
+  });
+});
+
+describe('stripTrackingForPreview', () => {
+  const params = {
+    publicToken: 'msg-token',
+    trackingDomain: 'track.test.local',
+  };
+
+  it('removes the open-tracking pixel so rendering the preview cannot fire an open event', () => {
+    const tracked = applyTracking(
+      '<html><body><p>Hi</p></body></html>',
+      params,
+    );
+
+    const preview = stripTrackingForPreview(tracked.html, new Map());
+
+    expect(preview).not.toContain('/o/msg-token.gif');
+    expect(preview).not.toContain('<img');
+  });
+
+  it('rewrites click-tracking links back to their original destination', () => {
+    const tracked = applyTracking(
+      '<p><a href="https://example.com/quote?id=1">View quote</a></p>',
+      params,
+    );
+    const [link] = tracked.links;
+
+    const preview = stripTrackingForPreview(
+      tracked.html,
+      new Map([[link.token, link.originalUrl]]),
+    );
+
+    expect(preview).toContain('href="https://example.com/quote?id=1"');
+    expect(preview).not.toContain(`/c/${link.token}`);
+  });
+
+  it('leaves an href untouched if its token has no known original URL', () => {
+    const html = `<a href="https://track.test.local/c/unknown-token">Link</a>`;
+
+    const preview = stripTrackingForPreview(html, new Map());
+
+    expect(preview).toContain(
+      'href="https://track.test.local/c/unknown-token"',
+    );
   });
 });

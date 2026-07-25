@@ -25,7 +25,8 @@
     "migrate:up": "node-pg-migrate -j sql --migrations-dir migrations up",
     "migrate:down": "node-pg-migrate -j sql --migrations-dir migrations down",
     "migrate:create": "node-pg-migrate -j sql --migrations-dir migrations create",
-    "db:seed": "ts-node -r tsconfig-paths/register src/database/seed.ts"
+    "db:seed": "ts-node -r tsconfig-paths/register src/database/seed.ts",
+    "db:seed:prod": "node dist/database/seed.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

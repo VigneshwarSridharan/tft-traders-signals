@@ -15,6 +15,7 @@ import type {
   TrackingEventRow,
 } from '../database/rows';
 import { toAttachmentSummary } from '../email-messages/email-messages.mapper';
+import { stripTrackingForPreview } from '../email-messages/tracking-injection.util';
 import { toTagSummary } from '../tags/tags.mapper';
 
 export interface TemplateInfo {
@@ -102,6 +103,12 @@ export function toSentMailDetail(
   bounce: BounceRow | null,
 ): SentMailDetail {
   const linksById = new Map(links.map((link) => [link.id, link]));
+  const linkTokenToUrl = new Map(
+    links.map((link) => [link.token, link.original_url]),
+  );
+  const bodyHtmlRendered = row.body_html_rendered
+    ? stripTrackingForPreview(row.body_html_rendered, linkTokenToUrl)
+    : row.body_html_rendered;
 
   return {
     id: row.id,
@@ -109,7 +116,7 @@ export function toSentMailDetail(
     toEmail: row.to_email,
     toName: row.to_name,
     subject: row.subject,
-    bodyHtmlRendered: row.body_html_rendered,
+    bodyHtmlRendered,
     bodyTextRendered: row.body_text_rendered,
     senderAccountId: row.sender_account_id,
     senderAccountEmail: senderAccount?.email ?? '',
