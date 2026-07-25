@@ -1,0 +1,30 @@
+# Use on hosts where an existing nginx-proxy + acme-companion pair already
+# owns ports 80/443 (e.g. sharing a VPS with another site). Joins Caddy to
+# that proxy's network instead of publishing host ports, and lets
+# nginx-proxy/acme-companion discover it via VIRTUAL_HOST/LETSENCRYPT_HOST
+# (the same convention the other site on the box already uses).
+#
+# Deploy with both files explicitly (skips docker-compose.override.yml,
+# which would otherwise re-publish 80/443 and conflict):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Requires in .env: DASHBOARD_HOST, API_HOST, TRACKING_HOST, LETSENCRYPT_EMAIL,
+# and NGINX_PROXY_NETWORK (the external network nginx-proxy/acme-companion
+# containers are attached to — check with `docker inspect nginx-proxy`).
+services:
+  reverse-proxy:
+    environment:
+      VIRTUAL_HOST: ${DASHBOARD_HOST},${API_HOST},${TRACKING_HOST}
+      VIRTUAL_PORT: "80"
+      LETSENCRYPT_HOST: ${DASHBOARD_HOST},${API_HOST},${TRACKING_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      - ./docker/caddy/Caddyfile.prod:/etc/caddy/Caddyfile:ro
+    networks:
+      - default
+      - nginx-proxy
+
+networks:
+  nginx-proxy:
+    external: true
+    name: ${NGINX_PROXY_NETWORK}

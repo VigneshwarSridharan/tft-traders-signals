@@ -1,0 +1,22 @@
+# Reverse proxy config for hosts where an external nginx-proxy +
+# acme-companion pair already owns ports 80/443 (see docker-compose.prod.yml).
+# Caddy still does the same-origin /api/* path routing (keeps auth cookies
+# first-party — see apps/api/src/auth/cookie.util.ts), but does NOT manage
+# its own TLS: the `http://` scheme below forces plain HTTP on :80, and
+# nginx-proxy/acme-companion terminate TLS in front of this container.
+
+http://{$DASHBOARD_HOST:dashboard.localhost} {
+	handle_path /api/* {
+		reverse_proxy api:3000
+	}
+
+	reverse_proxy web:3000
+}
+
+http://{$API_HOST:api.localhost} {
+	reverse_proxy api:3000
+}
+
+http://{$TRACKING_HOST:track.localhost} {
+	reverse_proxy api:3000
+}

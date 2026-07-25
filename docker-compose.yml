@@ -59,6 +59,7 @@ services:
       - "8090:80"
 
   api:
+    image: tft-traders-signals-api:latest
     build:
       context: .
       dockerfile: docker/api.Dockerfile
@@ -94,6 +95,8 @@ services:
       start_period: 15s
 
   worker:
+    # Same image as api (built once, reused here) — see docker/api.Dockerfile.
+    image: tft-traders-signals-api:latest
     build:
       context: .
       dockerfile: docker/api.Dockerfile
@@ -124,6 +127,7 @@ services:
       start_period: 15s
 
   web:
+    image: tft-traders-signals-web:latest
     build:
       context: .
       dockerfile: docker/web.Dockerfile
@@ -132,6 +136,11 @@ services:
     restart: unless-stopped
     environment:
       PORT: 3000
+      # Docker sets HOSTNAME to the container ID by default; Next.js
+      # standalone's server.js binds to it if set, which makes it
+      # unreachable via localhost (used by the healthcheck below) — force
+      # it to bind on all interfaces instead.
+      HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
     depends_on:
       - api
@@ -164,9 +173,6 @@ services:
         condition: service_healthy
       web:
         condition: service_healthy
-    ports:
-      - "80:80"
-      - "443:443"
 
 volumes:
   postgres_data:
